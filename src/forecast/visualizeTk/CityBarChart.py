@@ -59,7 +59,7 @@ def getProperty(p_section, p_attribute):
     converts the RGB color code into numerical representation in the range of 0-100
     
     :param    rgb: RGB values
-    :type     rgb: array of RGB values
+    :type     rgb: dict of RGB values
     :returns: converted RGB value
 """
 def _from_rgb(rgb):
@@ -92,29 +92,77 @@ def visualizeWeatherForecast(fc, location):
     #OWM API: https://openweathermap.org/forecast5
     period = 0
     for weather in fc:
-        #scale the temperature in 45 sectors (-10C and +35C)
+        #temperature
         t = next(iter(weather.get_temperature(unit='celsius').values()))
-        tm = int(255/45* ((45 if t > 45 else (-10 if t < -10 else t)) + 10))
-        #scale by the cloud percentage
+        tm = mapTemperatureToRGB(t)#int(255/45* ((45 if t > 45 else (-10 if t < -10 else t)) + 10))
+        #cloud coverage
         c = weather.get_clouds()
-        cm = int(255-255/100*c)
-        #highlight blue in case of snow otherwise scale the level of rain by 12 sectors 
-        r = weather.get_rain()
-        rm = 0
-        if (len(weather.get_snow()) == 0):
-            if (len(r) == 0):
-                r = 0
-                rm = 0
-            else:
-                r = list(r.values())[0]
-                rm = int(200/12*(12 if r > 12 else r))
-        else:
-            r = 255
+        cm = mapCloudsToRGB(c)#int(255-255/100*c)
+        #rain 
+        r = 0 if len(weather.get_rain()) == 0 else list(weather.get_rain().values())[0]
+        rm = mapRainToRGB(r)
+        #special color for any kind of snow fall - snow white is coming
+        if (len(weather.get_snow()) > 0):
+            tm = 100
+            cm = 200
             rm = 255
 
         #paint weather boxes for the current period
         paintScalePeriod(canvas, t, tm, c, cm, r, rm, period)
         period = period + 1
+
+"""
+    maps the temperature value into a continuous RGB value starting from 60 up to 255 in the temperature range of -10 celsius up to 35 celsius
+    see \docs\forecast\ColorScale.png for more information
+    
+    :param    t: temperature
+    :type     t: float
+    :returns: mapped temperature
+"""
+def mapTemperatureToRGB(t):
+    t = t + 10
+    if t < 0:
+        t = 0
+    elif t > 45:
+        t = 45
+    
+    return int(60 + (195 * (1 / 45 * t)))
+
+"""
+    maps the cloud coverage value into a discrete RGB value by the for categories (no clouds, slightly, cloudy, covered) based on DWD terminology
+    see \docs\forecast\ColorScale.png for more information
+    
+    :param    c: percentage of cloud coverage
+    :type     c: float
+    :returns: mapped cloud coverage
+"""   
+def mapCloudsToRGB(c):
+    if c < (100*1/8):       #no clouds
+        return 255
+    elif c < (100*3/8):     #slightly cloudy
+        return 201
+    elif c < (100*6/8):     #cloudy
+        return 148
+    else:                   #covered
+        return 95
+
+"""
+    maps the rain value into a discrete RGB value by the for categories (no rain, slightly, moderate, heavy) based on DWD terminology
+    see \docs\forecast\ColorScale.png for more information
+    
+    :param    r: amount of rain on l/sqm
+    :type     r: float
+    :returns: mapped rain
+"""  
+def mapRainToRGB(r):
+    if r < 0.3:             #no rain
+        return 95
+    elif r < 2.5:           #slightly
+        return 148
+    elif r < 10:            #moderate
+        return 201
+    else:                   #heavy
+        return 255
 
 """
     paints textual information about location and scales:
@@ -141,7 +189,7 @@ def paintLocationAndTime(canvas, location):
     for sc in range (1, 5):
         metric = {1 : "RED - Temperature [Celsius]", 
                   2 : "GREEN - Cloud Coverage [Percent]", 
-                  3 : "BLUE - Rain/Snow [l/sqm per hour]", 
+                  3 : "BLUE - Rain/Snow [l/sqm]", 
                   4 : "Combined"}[sc]
         canvas.create_text(20 + f.measure(metric) / 2,          #x
                            0.5 * RECT_H + RECT_H * (sc * 2),    #y
