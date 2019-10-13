@@ -29,6 +29,8 @@ import sys
 from tkinter import Tk, Canvas, font, mainloop
 from configparser import NoSectionError, NoOptionError
 from pyowm import OWM
+from datetime import datetime, date, timedelta
+from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
 
 #standard size of period rectangles for visualization
 RECT_W = 20
@@ -77,11 +79,14 @@ def _from_rgb(rgb):
     :type     tc: *Forecast* instance
     :param    location: location description for output
     :type     location: str
+    :param    startdate: start date of forecast period
+    :type     startdate: ``datetime.datetime`` object instance
 """
-def visualizeWeatherForecast(fc, location):
+def visualizeWeatherForecast(fc, location, startdate):
     #initialize canvas
     root = Tk()
-    root.geometry("900x500")
+    root.geometry("850x250")
+    root.title(location)
     canvas = Canvas(root, width=900, height=500)
     canvas.pack()
     
@@ -90,7 +95,9 @@ def visualizeWeatherForecast(fc, location):
 
     #iterate forecasts & store original as well as mapped data on a scale of 255
     #OWM API: https://openweathermap.org/forecast5
-    period = 0
+    index = 0
+    period = int(startdate.hour / 3) #forecast is divided by 3h periods
+
     for weather in fc:
         #temperature
         t = next(iter(weather.get_temperature(unit='celsius').values()))
@@ -107,9 +114,9 @@ def visualizeWeatherForecast(fc, location):
             cm = 200
             rm = 255
 
-        #paint weather boxes for the current period
-        paintScalePeriod(canvas, t, tm, c, cm, r, rm, period)
-        period = period + 1
+        #paint weather boxes for the current index
+        paintScalePeriod(canvas, t, tm, c, cm, r, rm, index, startdate, (period + index))
+        index = index + 1
 
 """
     maps the temperature value into a continuous RGB value starting from 60 up to 255 in the temperature range of -10 celsius up to 35 celsius
@@ -179,11 +186,21 @@ def mapRainToRGB(r):
 def paintLocationAndTime(canvas, location):
     #paint location header
     f = font.Font(size=20, family="Times", slant="italic", weight="bold")
-    canvas.create_text(20 + f.measure(location) / 2,    #x - x location dependent on text length
-                       20,                              #y
+    x1 = f.measure(location)
+    y1 = f.metrics('linespace')
+    canvas.create_text(20 + x1 / 2,     #x - x location dependent on text length
+                       5 + y1 / 2,      #y
                        text = location,
                        fill = 'black',
                        font = f)
+    f = font.Font(size=10, family="Times", slant="italic", weight="bold")
+    t = "[" + datetime.now().strftime("%A, %d. %B %Y %I:%M%p") + "]"
+    canvas.create_text(20 + x1 + 20 + f.measure(t) / 2,     #x - x location dependent on text length
+                   5 + (y1 - f.metrics('linespace') / 2) - 1,    #y
+                   text = t,
+                   fill = 'black',
+                   font = f)
+    
     #scale metric
     f = font.Font(size=10, family="Times", slant="roman", weight="normal")
     for sc in range (1, 5):
@@ -219,27 +236,59 @@ def paintLocationAndTime(canvas, location):
     :type     r: int in l/hour and sqrmeter 
     :param    rm: mapped color of rain value for period
     :type     rm: int
-    :param    period: counter for period
-    :type     period: int     
+    :param    index: counter for index in complete scale
+    :type     index: int   
+    :param    startdate: start date of the whole forecast period, period defines which 3h period is the current
+    :type     startdate: 
+    :param    period: counter for period of the day, each period represents a 3h slot, periods will be summed up from forecast start
+    :type     period: int
 """
-def paintScalePeriod(canvas, t, tm, c, cm, r, rm, period):
+def paintScalePeriod(canvas, t, tm, c, cm, r, rm, index, startdate, period):
+    f = font.Font(size=10, family="Times", slant="roman", weight="normal")
     
+    #paint color boxes with value inside
     for sc in range (1, 5):
-        canvas.create_rectangle(20 + RECT_W * period,                                   #x1
-                                RECT_H + RECT_H * (sc * 2),                                      #y1
-                                20 + RECT_W * (period + 1),                             #x2
-                                2 * RECT_H + RECT_H * (sc * 2),                             #y2
+        canvas.create_rectangle(20 + RECT_W * index,                                    #x1
+                                RECT_H + RECT_H * (sc * 2),                             #y1
+                                20 + RECT_W * (index + 1),                              #x2
+                                2 * RECT_H + RECT_H * (sc * 2),                         #y2
                                 fill=_from_rgb((tm if sc == 1 or sc == 4 else 0,        #temperature scale
                                                 cm if sc == 2 or sc == 4 else 0,        #cloud coverage scale
                                                 rm if sc == 3 or sc == 4 else 0)))      #rain scale
-        canvas.create_text(20 + RECT_W * period + RECT_W / 2,                           #x
-                           1.5 * RECT_H + RECT_H * (sc * 2),                              #y
+        canvas.create_text(20 + RECT_W * index + RECT_W / 2,                            #x
+                           1.5 * RECT_H + RECT_H * (sc * 2),                            #y
                            text=int(t if sc == 1 else
                                         c if sc == 2 else
                                         r if sc == 3 else
-                                        period),
-                           fill = '#999999')
-    
+                                        index),
+                           fill = 'white',
+                           font = f)
+        
+    #add time and date scale at the bottom
+    dtText = None
+    ts = period % 8 #check start time of period
+    if(ts == 2):
+        dtText='|6am'
+    elif(ts == 7):
+        dtText='|9pm'
+    elif(ts == 3):
+        #calculate the current day based on period
+        dt = startdate + timedelta(days=int(period / 8))
+        dtText = "   " + dt.strftime("%a, %d.%b")
+            
+    if(not dtText is None):
+        canvas.create_text(20 + RECT_W * index + f.measure(dtText) / 2, #x
+                           1.5 * RECT_H + RECT_H * 9,                   #y
+                           text=dtText,
+                           fill = 'black',
+                           font = f)
+    #adding a line for marking daytime
+    if(ts >= 2 and ts < 7):
+        canvas.create_line(20 + RECT_W * index,                         #x1
+                           1.5 * RECT_H + RECT_H * 9.5,                  #y1
+                           20 + RECT_W * index + RECT_W,                #x2
+                           1.5 * RECT_H + RECT_H * 9.5,                  #y2
+                           fill='black')
 """
 "
 "    ####### MAIN #######
@@ -280,15 +329,15 @@ if __name__ == '__main__':
             
     #request forecast
     #https://pyowm.readthedocs.io/en/latest/usage-examples-v2/weather-api-usage-examples.html#getting-weather-forecasts
-    forecast = owm.three_hours_forecast_at_id(int(cityID))
-    print('Forecast for: ', city, ' [', country, ']')
-    print('Forecast start date: ', forecast.when_starts('iso'))
-    print('Forecast end date: ', forecast.when_ends('iso'))
+    try:
+        forecast = owm.three_hours_forecast_at_id(int(cityID))
+    except (APIInvalidSSLCertificateError):
+        #TODO need to check how lib would react if max request for free OWM account reached
+        print('Establishing a network connection failed!')
+        sys.exit();
 
-    visualizeWeatherForecast(forecast.get_forecast(), location=city+" [" + country + "]")
+    visualizeWeatherForecast(forecast.get_forecast(), 
+                             location=city+", " + country, 
+                             startdate=forecast.when_starts('date'))
     
     mainloop()
-        
-    
-    
-    
