@@ -1,7 +1,7 @@
 '''
 Created on 19.10.2019
 
-@author: D040447
+@author: MBizm
 '''
 import math
 import numpy as np
