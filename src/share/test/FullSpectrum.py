@@ -48,7 +48,7 @@ if __name__ == '__main__':
     print(calculateHue(2.5, 2.5)) #45 --> PI/4
     print(calculateHue(-2.5, -2.5)) #225 --> 5/4PI OR -3/4PI
     print(calculateHue(0, -2.5)) #270 --> 3/2PI OR -PI/2
-    print(calculateHue(2.5, -2.5)) #315 --> 7/4PI OR -PI/4 a
+    print(calculateHue(2.5, -2.5)) #315 --> 7/4PI OR -PI/4
     
     #initialize canvas
     root = Tk()
