@@ -12,6 +12,7 @@ MAX_VALUE = 2.5
 
 def calculateHue(share, index):
     # define angle by position in grid defined by share and index value
+    # flip over color system at the y axis to have red zone in negative ranges for both values
     arcAlpha = math.atan2(index, -share)
     # math lib will return negative arc if in quadrant 3 or 4
     if(arcAlpha < 0):
@@ -61,7 +62,7 @@ if __name__ == '__main__':
     
     for x in range(int(-10*MAX_VALUE), int(10*MAX_VALUE+1), 1):
         for y in range(int(10*MAX_VALUE), int(-10*MAX_VALUE-1), -1):   
-            color = colorsys.hsv_to_rgb(1/360*calculateHue(normalizeValue(x), normalizeValue(y)),
+            color = colorsys.hsv_to_rgb(1/360*calculateHue(normalizeValue(x/10), normalizeValue(y/10)),
                                         1/(2*MAX_VALUE)*calculatePriceDelta(x/10, y/10),
                                         1)
                     
