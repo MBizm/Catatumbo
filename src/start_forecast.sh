@@ -1,0 +1,1 @@
+sudo python3 -m adafruit.controller.forecast.adafruit_forecast
