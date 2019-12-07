@@ -29,7 +29,7 @@ import sys
 from tkinter import Tk, Canvas, font, mainloop
 from configparser import NoSectionError, NoOptionError
 from pyowm import OWM
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
 
 #standard size of period rectangles for visualization
@@ -49,13 +49,14 @@ RECT_H = 20
     :returns: value 
 """
 def getProperty(p_section, p_attribute):
+    config = configparser.RawConfigParser()
+    config.read('../../../adafruit/core/forecast/CONFIG.properties')
+        
     try:
-        config = configparser.RawConfigParser()
-        config.read('CONFIG.properties')
         ret = config.get(p_section, p_attribute)
     except (NoOptionError, NoSectionError):
         return None;
-    return ret;
+    return ret; 
 
 """
     converts the RGB color code into numerical representation in the range of 0-100
@@ -176,7 +177,6 @@ def mapRainToRGB(r):
         - city [country]
         - scale metric
         - time information
-    TODO: scale metric and time information
     
     :param    canvas: an TK area for painting
     :type     canvas: *Canvas* instance
@@ -212,8 +212,7 @@ def paintLocationAndTime(canvas, location):
                            0.5 * RECT_H + RECT_H * (sc * 2),    #y
                            text=metric,
                            fill = 'black',
-                           font = f)
-    #TODO time information    
+                           font = f)    
         
 """
     paints a box for a given period for all scales:
