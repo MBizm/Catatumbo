@@ -56,6 +56,8 @@ class NeoPixelColors(object):
     W_LIGHT_WHITE      = None     #brighter white
     W_WHITE            = None
     
+    W_BLACK            = None
+    
     
     """
         contructor
@@ -68,6 +70,8 @@ class NeoPixelColors(object):
             self.__initRGB__()
         elif pixelorder == neopixel.GRBW or pixelorder == neopixel.RGBW:
             self.__initRGBW__()
+
+        self.__initDerivedColors__()
 
     """
         initializer for RGBW LED strip
@@ -107,6 +111,9 @@ class NeoPixelColors(object):
         
         type(self).W_LIGHT_WHITE      = (255,255,255,255) #brighter white
         type(self).W_WHITE            = (255,255,255,0)
+        
+        type(self).W_BLACK            = (0,0,0,0)
+        
     
     """
         initializer for RGB LED strip
@@ -131,6 +138,7 @@ class NeoPixelColors(object):
         type(self).W_LAVENDERBLUSH    = (255,80,15)       #very bright version of rose
         
         type(self).W_LIGHT_GREEN      = (0,63,0)          #green with a tendency to limegreen
+        type(self).W_LIGHT_MINTH      = (0,255,10)        #light green with bright white
         type(self).W_LIGHT_SEAGREEN   = (0,63,15)
         
         type(self).W_CYAN             = (50,150,127)      #light turkis
@@ -143,4 +151,14 @@ class NeoPixelColors(object):
         
         type(self).W_LIGHT_PURPLE     = (140,0,255)       #brighter purple with a redish nuance 
         
-        type(self).W_WHITE            = (255,255,255)  
+        type(self).W_LIGHT_WHITE      = (233,233,255)     #brighter white
+        type(self).W_WHITE            = (255,255,255)
+          
+        
+        type(self).W_BLACK            = (0,0,0)
+        
+    """
+        empty implementation for derived classes to define own color definitions on base colors
+    """ 
+    def __initDerivedColors__(self):
+        pass
