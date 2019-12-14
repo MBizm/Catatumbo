@@ -22,7 +22,7 @@ class ForecastNeoPixelColors(NeoPixelColors):
     """
     STATIC CLASS ATTRIBUTES
     """
-    W_HITMP             = NeoPixelColors.W_RED  #high temperature, no rain, no clouds
+    W_HITMP             = None  #high temperature, no rain, no clouds
     W_HITMP_SLRAINY     = None  #high temperature, slightly rainy
     W_HITMP_RAINY       = None  #high temperature, rainy
     W_HITMP_SLCLOUDY    = None  #high temperature, slightly cloudy
@@ -46,9 +46,9 @@ class ForecastNeoPixelColors(NeoPixelColors):
     """
         initializer for RGBW LED strip
     """     
-    def __initRGBW__(self):
+    def __initDerivedColors__(self):
         
-        super().__initRGBW__()
+        super().__initDerivedColors__()
 
         type(self).W_HITMP             = ForecastNeoPixelColors.W_RED             #high temperature, no rain, no clouds
         type(self).W_HITMP_SLRAINY     = ForecastNeoPixelColors.W_WARM_MAGENTA    #high temperature, slightly rainy
