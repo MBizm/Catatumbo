@@ -44,8 +44,36 @@ class NeoPixelBase(object):
                  color_schema   = NeoPixelColors,
                  brightness     = 0.2):
         
-        # check if pixelpin parameter was provided as instance or string (in case of command line configuration)
-        # map to PCM capable GPIOs - https://forums.adafruit.com/viewtopic.php?f=47&p=776283
+        # check if mapping of pin is required
+        pixelpin = self.__map_Pin__(pixelpin)
+        
+        # check if mapping of pixelorder is required
+        pixelorder = self.__map_Order__(pixelorder)
+                
+        #initializing color schema
+        #this will dependent whether its a RGB or RGBW strip define the predefined color values
+        self.__schema = color_schema(pixelorder)
+        
+        # init strip
+        self.__strip = neopixel.NeoPixel(pixelpin, 
+                                         int(pixelnum), 
+                                         brightness=brightness, 
+                                         auto_write=False,
+                                         pixel_order=pixelorder)
+
+    ########################################
+    #            UTILITY METHODS           #
+    ######################################## 
+    """
+        checks if pixelpin parameter was provided as instance or string (in case of command line configuration)
+        maps to PCM capable GPIOs - https://forums.adafruit.com/viewtopic.php?f=47&p=776283
+        
+        :param    pixelpin: pin defined either by neopixel attributes (board.D18, ...) or string
+        :type     pixelpin: str or neopixel attribute
+        :returns: pin as defined by neopixel attribute
+    """
+    def __map_Pin__(self, pixelpin):
+        
         if isinstance(pixelpin, str):
             if(pixelpin == 'D18'):
                 pixelpin = board.D18
@@ -55,7 +83,17 @@ class NeoPixelBase(object):
                 pixelpin = board.D12
             elif(pixelpin == 'D21'):
                 pixelpin = board.D21
-
+        
+        return pixelpin
+    
+    """
+        checks if pixelorder parameter was provided as instance or string (in case of command line configuration)
+        
+        :param    pixelorder: order defined either by neopixel attributes (neopixel.GRB, ...) or string
+        :type     pixelorder: str or neopixel attribute
+        :returns: order as defined by neopixel attribute
+    """
+    def __map_Order__(self, pixelorder):
         # check if pixelorder parameter was provided as instance or string (in case of command line configuration)
         if isinstance(pixelorder, str):
             if(pixelorder == 'GRB'):
@@ -66,17 +104,12 @@ class NeoPixelBase(object):
                 pixelorder = neopixel.GRBW
             elif(pixelorder == 'RGBW'):
                 pixelorder = neopixel.RGBW
-                
-        #initializing color schema
-        #this will dependent whether its a RGB or RGBW strip define the predefined color values
-        self.__schema = color_schema(pixelorder)
-        print(brightness)
-        self.__strip = neopixel.NeoPixel(pixelpin, 
-                                         pixelnum, 
-                                         brightness=brightness, 
-                                         auto_write=False,
-                                         pixel_order=pixelorder)
-    
+        
+        return pixelorder
+
+    ########################################
+    #            MEMBER METHODS            #
+    ########################################
     """
     TODO
     """
