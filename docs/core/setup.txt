@@ -1,0 +1,14 @@
+Active SPI for multi GPIO support:
+	https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md
+	
+
+TODO:
+	- change color selectors from static to singleton approach
+	- instantiation of neopixel class dynamically due to 1 at a time restriction by neopixel lib
+	
+	
+Raspberry GPIOs:
+	https://www.raspberrypi-spy.co.uk/2012/06/simple-guide-to-the-rpi-gpio-header-and-pins/#prettyPhoto/0/
+	
+Future enhancement - multi-PWM adapter:
+	https://www.adafruit.com/product/815

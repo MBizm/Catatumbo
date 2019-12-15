@@ -14,7 +14,7 @@ import os
 import sys
 from optparse import OptionParser
 
-def cmd_options(version, updated, argv=None):
+def cmd_options(version, updated, par="basic", argv=None):
     '''Command line options.'''
 
     program_name = os.path.basename(sys.argv[0])
@@ -31,15 +31,15 @@ def cmd_options(version, updated, argv=None):
     try:
         # setup option parser
         parser = OptionParser(version=program_version_string, epilog=program_longdesc, description=program_license)
-        parser.add_option("-p", "--port", dest="port", help="redefines the Raspi GPIO port: D18, D10, D12, D21 [default: %default]")
-        parser.add_option("-l", "--length", dest="len", help="defines the number of leds for the strip [default: %default]")
-        #TODO might differ between different modules
+        if(par == "extended"):
+            parser.add_option("-p", "--port", dest="port", help="redefines the Raspi GPIO port: D18, D10, D12, D21 [default: %default]")
+            parser.add_option("-l", "--length", dest="len", help="defines the number of leds for the strip [default: %default]")
+            parser.add_option("-c", "--color_schema", dest="schema", help="defines the color schema of the strip: GRB, RGB, GRBW, RGBW [default: %default]")
+        parser.add_option("-b", "--brightness", dest="bright", help="defines the brightness of the strip: 0 - 1.0 [default: %default]")
         parser.add_option("-m", "--color_mode", dest="mode", help="[1] all temp high, [2] all temp med, [3] all temp low, [4] all cloud, [5] all rain [default: %default]")
-        parser.add_option("-c", "--color_schema", dest="schema", help="defines the color schema of the strip: GRB, RGB, GRBW, RGBW [default: %default]")
-        parser.add_option("-b", "--brightness", dest="brigth", help="defines the brightness of the strip: 0 - 1.0 [default: %default]")
 
         # set defaults
-        parser.set_defaults(port="D18", schema="GRBW", mode="1", len="1", brigth="0.2")
+        parser.set_defaults(port="D18", schema="GRBW", mode="1", len="1", bright="0.2")
 
         # process options
         (opts, args) = parser.parse_args(argv)
