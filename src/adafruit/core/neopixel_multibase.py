@@ -17,6 +17,8 @@ from adafruit.core.neopixel_base import NeoPixelBase
 import board
 import neopixel
 from adafruit.core.neopixel_colors import NeoPixelColors
+import configparser
+from configparser import NoOptionError, NoSectionError
 
 class NeoPixelMultiBase(NeoPixelBase):
     
@@ -32,18 +34,70 @@ class NeoPixelMultiBase(NeoPixelBase):
     __stripList = None
 
     """
-        contructor
+        constructor for multi strip base class
+        multiple strips connected to different GPIO pins will be treated as a chain of strips attached to each other.
+        if first strip is filled up, second one will be filled with the remaining buffer content and so on.
+        configuration for the strips is taken from a property file that needs to be defined.
+        format of the property file is expected to be:
         
-        :param    pixelorder: defines the LED strip type. use NeoPixel class attributes RGB, GRB, RGBW, GRBW
-        :type     pixelorder: int
-        TODO
+                [GeneralConfiguration]
+                Brightness=0.3
+                
+                [Strip1]
+                PixelPin1=D18
+                PixelNum1=60
+                PixelOrder1=GRBW
+                
+                [Strip2]
+                PixelPin2=D21
+                PixelNum2=301
+                PixelOrder2=GRB
+                
+                [Strip3]
+                PixelPin3=D13
+                PixelNum3=145
+                PixelOrder3=GRB
+        
+        :param    config_file: the location of the properties file, relative to runtime execution path
+        :type     config_file: str
+        :param    color_schema: the color schema class which defined the color values, e.g. NeoPixelColors or derived classes
+        :type     color_schema: class
     """  
-    def __init__(self):
+    def __init__(self, config_file, color_schema):
         
         # no initialization of super constructor to avoid led strip initialization
         
         # the set of led strip represented by NeoPixelBase classes
         self.__stripList = []
+        
+        # read config for led strips
+        cp = configparser.RawConfigParser()
+        cp.read(config_file)
+
+        # loop all individual led strip configurations
+        counter = 1
+        while counter > -1:
+            try:
+                section = "Strip" + str(counter)
+
+                strip = NeoPixelMultiBase.__Config__(pixelpin       = cp.get(section, "PixelPin" + str(counter)),
+                                                     pixelnum       = cp.get(section, "PixelNum" + str(counter)),
+                                                     pixelorder     = cp.get(section, "PixelOrder" + str(counter)),
+                                                     color_schema   = color_schema)
+                self.addStrip(strip)
+                
+            except (NoOptionError, NoSectionError):
+                counter = -1
+                # ensure we directly step out of loop
+                continue
+            
+            counter = counter + 1
+        
+        # set brightness level for all strips
+        try:
+            self.setBrightness(cp.get("GeneralConfiguration", "Brightness"))
+        except (NoOptionError, NoSectionError):
+            self.setBrightness(0.3)
             
     
     ########################################
@@ -145,7 +199,7 @@ class NeoPixelMultiBase(NeoPixelBase):
                 # corresponding pixel found
                 return
             
-            count += strip.getNumPixels()
+            count += strip.getNumPixels()       
         
     """
         update the strip with the defined color values

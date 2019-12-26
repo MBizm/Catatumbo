@@ -20,6 +20,9 @@ from adafruit.core.neopixel_colors import NeoPixelColors
 
 class NeoPixelBase(object):
     
+    __version__ = 0.1
+    __updated__ = '2019-12-26'
+    
     """
     STATIC CLASS ATTRIBUTES
     """
@@ -66,7 +69,8 @@ class NeoPixelBase(object):
     ######################################## 
     """
         checks if pixelpin parameter was provided as instance or string (in case of command line configuration)
-        maps to PCM capable GPIOs - https://forums.adafruit.com/viewtopic.php?f=47&p=776283
+        maps to PCM/PWM/SPI capable GPIOs - https://forums.adafruit.com/viewtopic.php?f=47&p=776283
+        TODO: maybe also D13 may be available, see https://github.com/rpi-ws281x/rpi-ws281x-python/blob/master/library/README.rst
         
         :param    pixelpin: pin defined either by neopixel attributes (board.D18, ...) or string
         :type     pixelpin: str or neopixel attribute
@@ -137,6 +141,29 @@ class NeoPixelBase(object):
     """        
     def setPixel(self, index, color):
         self.__strip[index] = color
+        
+    """
+        fills the strips according to a list of color values
+        
+        :param    sampleboard: list of color values defining the section, the section size depends on the number of pixels available in total
+        :type     sampleboard: list
+    """       
+    def setPixelBySampeboard(self, sampleboard):
+        # divide the sections across all strips by the number of color entries in the sampleboard
+        sectionsize = int(self.getNumPixels() / len(sampleboard))
+
+        # preset pixel colors
+        for i in range(self.getNumPixels()-1):
+            # fill up remaining pixels
+            if(int(i / sectionsize) >= len(sampleboard)):
+                self.setPixel(i, sampleboard[len(sampleboard) - 1]) 
+            # preset pixel colors according to color space set  
+            else:
+                self.setPixel(i, sampleboard[int(i / sectionsize)])
+                print('[' + str(i) + '] ' + str(sampleboard[int(i / sectionsize)]))
+        
+        # update color values if not done automatically
+        self.show() 
         
     """
         update the strip with the defined color values

@@ -31,12 +31,13 @@ def cmd_options(version, updated, par="basic", argv=None):
     try:
         # setup option parser
         parser = OptionParser(version=program_version_string, epilog=program_longdesc, description=program_license)
-        if(par == "extended"):
+        if par == "extended" or par == "simple":
             parser.add_option("-p", "--port", dest="port", help="redefines the Raspi GPIO port: D18, D10, D12, D21 [default: %default]")
             parser.add_option("-l", "--length", dest="len", help="defines the number of leds for the strip [default: %default]")
             parser.add_option("-c", "--color_schema", dest="schema", help="defines the color schema of the strip: GRB, RGB, GRBW, RGBW [default: %default]")
         parser.add_option("-b", "--brightness", dest="bright", help="defines the brightness of the strip: 0 - 1.0 [default: %default]")
-        parser.add_option("-m", "--color_mode", dest="mode", help="[1] all temp high, [2] all temp med, [3] all temp low, [4] all cloud, [5] all rain [default: %default]")
+        if par is not "simple":
+            parser.add_option("-m", "--color_mode", dest="mode", help="[1] all temp high, [2] all temp med, [3] all temp low, [4] all cloud, [5] all rain [default: %default]")
 
         # set defaults
         parser.set_defaults(port="D18", schema="GRBW", mode="1", len="1", bright="0.2")
