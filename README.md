@@ -25,7 +25,7 @@ With Catatumbo lib you do not have to care about led strip specifics. Just wire 
 ## Multi-strip support
 Do you want to connect multiple led strips to your Raspberry? Catatumbo lib let's you create multiple instances which can be easily configured and change the color pattern or brightness independently. At the same time, Catatumbo may abstract the usage of multiple strips directly connected to the Raspberry by representing it as one. As a result, you just set up one sampleboard and Catatumbo will spread it across all available instances.
 
-*   Connecting multiple strips transparently, see example [here] (https://github.com/MBizm/Catatumbo/blob/master/src/test/adafruit/forecast/neopixel_multibase_test.py)
+*   Connecting multiple strips transparently, see example [here](https://github.com/MBizm/Catatumbo/blob/master/src/test/adafruit/forecast/neopixel_multibase_test.py)
 *   Having two separate instances being controlled by your Raspberry, see example [here](https://github.com/MBizm/Catatumbo/blob/master/src/test/adafruit/forecast/neopixel_base_threadtest.py)
 
 _REMARK: Multi-strip support currently depends on adapted Adafruit Blinka lib. This version of the driver supports several GPIO pins (12, 13, 18, 19, 21). For avoiding interference between the instances, pin 18 and 21 is recommended. Find the adapted version of Adafruit Blinka [here](https://github.com/MBizm/Adafruit_Blinka)._ 
@@ -52,4 +52,4 @@ A simple script that shows the full color spectrum how share price and leading i
 
 # Credits
 - [OpenWeatherMap](https://openweathermap.org/) - weather data is provided under the [Open Data Commons Open Database License(ODbL)](http://opendatacommons.org/licenses/odbl/)
-- [Adafruit Lib for WS281x SK681x leds](https://github.com/adafruit)
+- [Adafruit Lib for WS281x SK681x LEDs](https://github.com/adafruit)
