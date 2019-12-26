@@ -29,15 +29,13 @@ Potential color ranges are:
 @deffield    updated: Updated
 '''
 from adafruit.core.neopixel_base import NeoPixelBase
-import board
-import neopixel
 from adafruit.core.forecast.forecast_colors import ForecastNeoPixelColors
 from adafruit.core.cmd_functions import cmd_options
 
 class NeoPixelForecastColorsTest(NeoPixelBase):
 
     __version__ = 0.1
-    __updated__ = '2019-12-14'
+    __updated__ = '2019-12-26'
 
     """
         predefined schemas based on ForecastNeoPixelColors colorset
@@ -48,24 +46,7 @@ class NeoPixelForecastColorsTest(NeoPixelBase):
     SCHEMA_ALLCLOUDY    = '4'
     SCHEMA_ALLRAINY     = '5'
 
-    def __init__(self, 
-                 pixelpin       = board.D18, 
-                 pixelnum       = 0, 
-                 pixelorder     = neopixel.RGBW,
-                 color_mode     = 1,
-                 brightness     = 0.2):
-        
-        super().__init__(pixelpin, 
-                         pixelnum, 
-                         pixelorder, 
-                         ForecastNeoPixelColors,
-                         brightness)
-        
-        self.initColorTest(color_mode)
-        
-        #self.setBrightness(brightness)
-
-    def initColorTest(self, color_mode = 1):
+    def fillStrip(self, color_mode = 1):
 
         if color_mode == type(self).SCHEMA_ALLTEMPHIGH:                          #all varieties of high temperature
             sampleboard = (ForecastNeoPixelColors.W_HITMP,              #temp high 
@@ -111,18 +92,7 @@ class NeoPixelForecastColorsTest(NeoPixelBase):
             #stay with the default initialization
             return
     
-        sectionsize = int(self.getNumPixels() / len(sampleboard))
-    
-        # preset pixel colors
-        for i in range(self.getNumPixels()-1):
-            # fill up remaining pixels
-            if(int(i / sectionsize) >= len(sampleboard)):
-                self.setPixel(i, sampleboard[len(sampleboard) - 1]) 
-            # preset pixel colors according to color space set  
-            else:
-                self.setPixel(i, sampleboard[int(i / sectionsize)])
-                print('[' + str(i) + '] ' + str(sampleboard[int(i / sectionsize)]))
-        self.show()
+        self.setPixelBySampeboard(sampleboard)
  
 
 ########################################
@@ -134,11 +104,11 @@ if __name__ == '__main__':
                        NeoPixelForecastColorsTest.__updated__,
                        par = "extended")
     
-    NeoPixelForecastColorsTest(pixelpin     = opts.port, 
-                               pixelnum     = int(opts.len), 
-                               pixelorder   = opts.schema, 
-                               color_mode   = opts.mode,
-                               brightness   = float(opts.bright))
+    np = NeoPixelForecastColorsTest(pixelpin     = opts.port, 
+                                    pixelnum     = int(opts.len), 
+                                    pixelorder   = opts.schema, 
+                                    color_mode   = opts.mode,
+                                    brightness   = float(opts.bright))
 
-
+    np.fillStrip(opts.mode)
     
