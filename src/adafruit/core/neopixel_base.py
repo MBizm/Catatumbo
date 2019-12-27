@@ -70,7 +70,7 @@ class NeoPixelBase(object):
     """
         checks if pixelpin parameter was provided as instance or string (in case of command line configuration)
         maps to PCM/PWM/SPI capable GPIOs - https://forums.adafruit.com/viewtopic.php?f=47&p=776283
-        TODO: maybe also D13 may be available, see https://github.com/rpi-ws281x/rpi-ws281x-python/blob/master/library/README.rst
+        pins are now adapted to defined pins in adapted Adafrui_Blinka lib, see https://github.com/MBizm/Adafruit_Blinka/blob/master/src/adafruit_blinka/microcontroller/bcm283x/neopixel.py
         
         :param    pixelpin: pin defined either by neopixel attributes (board.D18, ...) or string
         :type     pixelpin: str or neopixel attribute
@@ -79,12 +79,14 @@ class NeoPixelBase(object):
     def __map_Pin__(self, pixelpin):
         
         if isinstance(pixelpin, str):
-            if(pixelpin == 'D18'):
-                pixelpin = board.D18
-            elif(pixelpin == 'D10'):
-                pixelpin = board.D10
-            elif(pixelpin == 'D12'):
+            if(pixelpin == 'D12'):
                 pixelpin = board.D12
+            elif(pixelpin == 'D13'):
+                pixelpin = board.D13
+            elif(pixelpin == 'D18'):
+                pixelpin = board.D18
+            elif(pixelpin == 'D19'):
+                pixelpin = board.D19
             elif(pixelpin == 'D21'):
                 pixelpin = board.D21
         
