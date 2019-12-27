@@ -107,7 +107,7 @@ if __name__ == '__main__':
     np = NeoPixelForecastColorsTest(pixelpin     = opts.port, 
                                     pixelnum     = int(opts.len), 
                                     pixelorder   = opts.schema, 
-                                    color_mode   = opts.mode,
+                                    color_schema = ForecastNeoPixelColors,
                                     brightness   = float(opts.bright))
 
     np.fillStrip(opts.mode)
