@@ -1,9 +1,10 @@
 '''
-TODO The visualization script will present the weather forecast for the next days in 3 hour period for a defined location.
-It requires a valid OpenWeatherMap key - free of charge for a limited amount of requests. See OWM website for more information: https://openweathermap.org/price.
-Static configuration can be done by CONFIG.properties file. Otherwise values will be requested via command line.
+The Forecast module will represent the weather forecast in a range between today and +5 days (see mode attribute on command line for parametrization)
+as color values on the attached led strips. Status will be constantly updated every 30mins. See the color values for the weather conditions in
+Catatumbo/src/adafruit/core/forecast/forecast_colors.py.
 
-TODO Resulting Tk Canvas will output 3 scales with temperature (red), cloud coverage (green) and rain forecast (blue) as well as an additional combined scale.
+It requires a valid OpenWeatherMap key - free of charge for a limited amount of requests. See OWM website for more information: https://openweathermap.org/price.
+Static configuration can be done by FORECASTCONFIG.properties file. Otherwise values will be requested via command line.
 
 Let yourself be dragged into the fascination of Catatumbo - Happy weather watching!
  
@@ -31,7 +32,7 @@ limitations under the License.
 @deffield    created: December 2019
 @deffield    updated: Updated
 '''
-from adafruit.core.forecast.forecast_colors import ForecastNeoPixelColors
+
 from pyowm import OWM
 from adafruit.core.neopixel_multibase import NeoPixelMultiBase
 from adafruit.core.util.cmd_functions import cmd_options
@@ -39,8 +40,12 @@ from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
 from adafruit.core.util.utility import numberToBase
 from threading import Timer
 import time
+from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
 
 class NeoPixelForecast(NeoPixelMultiBase):
+    
+    __version__ = 0.1
+    __updated__ = '2019-12-28'
 
     """
     STATIC CLASS ATTRIBUTES
@@ -208,8 +213,8 @@ class NeoPixelForecast(NeoPixelMultiBase):
             # switch to next forecast block
             pos = pos << 1
         
-        # prepare mask for day turn analysis by cutting the offset
-        mask = mask << offset
+        # prepare mask for day turn analysis by shifting by the offset
+        mask = (mask >> offset) & 0xFFFFFFFFFF
         
         # print weather forecast
         self.setPixelBySampleboard(sampleboard, mask)
@@ -221,6 +226,8 @@ class NeoPixelForecast(NeoPixelMultiBase):
         the block size is defined by the number of binary 1s that are in a chain without a binary 0 in between. 
         a new block can start with a binary 0 in between.
         the logic for the blocks resulted from the forecast functionality, in which only certain periods of the day were taken over into sampleboard.
+        
+        TODO the implementation of divider needs refactoring, simplifying coding and also considering cases where full day is considered in bit mask but still there should be a day divider being shown
         
         :param    sampleboard: list of color values defining the section, the section size depends on the number of pixels available in total
         :type     sampleboard: list
@@ -251,10 +258,10 @@ class NeoPixelForecast(NeoPixelMultiBase):
             
             # check each bit in mask for block belonging together and count all blocks of '1's assembled together
             # a '0' in between indicates that a divider is required
-            for i in mask_set:
-                if i == 1:
+            for i in reversed(range(len(mask_set))):
+                if mask_set[i] == 1:
                     new_block = True
-                elif i == 0:
+                elif mask_set[i] == 0:
                     new_block = False
                     
                 # check if we found a new block
