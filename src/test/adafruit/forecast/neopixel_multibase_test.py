@@ -28,8 +28,8 @@ Potential color categories are:
 @deffield    updated: Updated
 '''
 from adafruit.core.neopixel_multibase import NeoPixelMultiBase
-from adafruit.core.forecast.forecast_colors import ForecastNeoPixelColors
 from adafruit.core.util.cmd_functions import cmd_options
+from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
 
 class NeoPixelMultiStripsColorsTest(NeoPixelMultiBase):
     

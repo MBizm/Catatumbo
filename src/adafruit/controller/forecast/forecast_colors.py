@@ -15,7 +15,7 @@ Current version of the class only addresses RGBW capable chips
 @deffield    created: November 2019
 @deffield    updated: Updated
 '''
-from ..neopixel_colors import NeoPixelColors
+from adafruit.core.neopixel_colors import NeoPixelColors
 
 class ForecastNeoPixelColors(NeoPixelColors):
 
