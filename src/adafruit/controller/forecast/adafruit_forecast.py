@@ -208,8 +208,8 @@ class NeoPixelForecast(NeoPixelMultiBase):
             # switch to next forecast block
             pos = pos << 1
         
-        # prepare mask for day turn analysis by cutting the offset
-        mask = mask << offset
+        # prepare mask for day turn analysis by shifting by the offset
+        mask = (mask >> offset) & 0xFFFFFFFFFF
         
         # print weather forecast
         self.setPixelBySampleboard(sampleboard, mask)
@@ -251,10 +251,10 @@ class NeoPixelForecast(NeoPixelMultiBase):
             
             # check each bit in mask for block belonging together and count all blocks of '1's assembled together
             # a '0' in between indicates that a divider is required
-            for i in mask_set:
-                if i == 1:
+            for i in reversed(range(len(mask_set))):
+                if mask_set[i] == 1:
                     new_block = True
-                elif i == 0:
+                elif mask_set[i] == 0:
                     new_block = False
                     
                 # check if we found a new block
