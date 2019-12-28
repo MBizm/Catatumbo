@@ -30,7 +30,7 @@ Potential color ranges are:
 '''
 from adafruit.core.neopixel_base import NeoPixelBase
 from adafruit.core.forecast.forecast_colors import ForecastNeoPixelColors
-from adafruit.core.cmd_functions import cmd_options
+from adafruit.core.util.cmd_functions import cmd_options
 
 class NeoPixelForecastColorsTest(NeoPixelBase):
 
@@ -92,7 +92,7 @@ class NeoPixelForecastColorsTest(NeoPixelBase):
             #stay with the default initialization
             return
     
-        self.setPixelBySampeboard(sampleboard)
+        self.setPixelBySampleboard(sampleboard)
  
 
 ########################################
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     np = NeoPixelForecastColorsTest(pixelpin     = opts.port, 
                                     pixelnum     = int(opts.len), 
                                     pixelorder   = opts.schema, 
-                                    color_mode   = opts.mode,
+                                    color_schema = ForecastNeoPixelColors,
                                     brightness   = float(opts.bright))
 
     np.fillStrip(opts.mode)

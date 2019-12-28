@@ -15,7 +15,7 @@ This script shows the simplest way to initialize an led strip, rendering the tri
 @deffield    updated: Updated
 '''
 from adafruit.core.neopixel_base import NeoPixelBase
-from adafruit.core.cmd_functions import cmd_options
+from adafruit.core.util.cmd_functions import cmd_options
 from adafruit.core.neopixel_colors import NeoPixelColors
 
 ########################################
@@ -38,5 +38,5 @@ if __name__ == '__main__':
                    NeoPixelColors.W_WHITE,
                    NeoPixelColors.W_RED)    
 
-    np.setPixelBySampeboard(sampleboard)
+    np.setPixelBySampleboard(sampleboard)
     

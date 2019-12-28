@@ -50,7 +50,7 @@ RECT_H = 20
 """
 def getProperty(p_section, p_attribute):
     config = configparser.RawConfigParser()
-    config.read('../../../adafruit/core/forecast/CONFIG.properties')
+    config.read('../../../test/adafruit/forecast/config/FORECASTCONFIG.properties')
         
     try:
         ret = config.get(p_section, p_attribute)
@@ -295,15 +295,15 @@ def paintScalePeriod(canvas, t, tm, c, cm, r, rm, index, startdate, period):
 """
 if __name__ == '__main__':
     #get your personal key
-    API_KEY = getProperty('ConnectionData', 'APIKey');
+    API_KEY = getProperty('Forecast-ConnectionData', 'APIKey');
     if(API_KEY is None):
         API_KEY = input('Enter your API Key: ')
     
     #get location for request
     #TODO get location via IP: https://ipinfo.io/developers
-    cityID = getProperty('ApplicationData', 'CityID')
-    city = getProperty('ApplicationData', 'CityName')
-    country = getProperty('ApplicationData', 'Country')
+    cityID = getProperty('Forecast-ApplicationData', 'CityID')
+    city = getProperty('Forecast-ApplicationData', 'CityName')
+    country = getProperty('Forecast-ApplicationData', 'Country')
     if(cityID is None):
         if(country is None):
             country = input('Enter your country: ')
