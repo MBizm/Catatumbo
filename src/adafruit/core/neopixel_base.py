@@ -149,8 +149,13 @@ class NeoPixelBase(object):
         
         :param    sampleboard: list of color values defining the section, the section size depends on the number of pixels available in total
         :type     sampleboard: list
-    """       
-    def setPixelBySampeboard(self, sampleboard):
+    """      
+    def setPixelBySampleboard(self, sampleboard):
+        
+        # do nothing if sampleboard is empty
+        if len(sampleboard) == 0:
+            return
+        
         # divide the sections across all strips by the number of color entries in the sampleboard
         sectionsize = int(self.getNumPixels() / len(sampleboard))
 
@@ -166,7 +171,7 @@ class NeoPixelBase(object):
         
         # update color values if not done automatically
         self.show() 
-        
+    
     """
         update the strip with the defined color values
     """        

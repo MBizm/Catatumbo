@@ -29,7 +29,7 @@ Potential color categories are:
 '''
 from adafruit.core.neopixel_multibase import NeoPixelMultiBase
 from adafruit.core.forecast.forecast_colors import ForecastNeoPixelColors
-from adafruit.core.cmd_functions import cmd_options
+from adafruit.core.util.cmd_functions import cmd_options
 
 class NeoPixelMultiStripsColorsTest(NeoPixelMultiBase):
     
@@ -91,7 +91,7 @@ class NeoPixelMultiStripsColorsTest(NeoPixelMultiBase):
             #stay with the default initialization
             return
         
-        self.setPixelBySampeboard(sampleboard)
+        self.setPixelBySampleboard(sampleboard)
         
         
 ########################################
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     opts = cmd_options(NeoPixelMultiStripsColorsTest.__version__, 
                        NeoPixelMultiStripsColorsTest.__updated__)
     
-    np = NeoPixelMultiStripsColorsTest(config_file   = 'test/adafruit/forecast/MULTIBASECONFIG.properties',
+    np = NeoPixelMultiStripsColorsTest(config_file   = 'test/adafruit/forecast/config/MULTIBASECONFIG.properties',
                                        color_schema  = ForecastNeoPixelColors)
     
     np.fillStrips(opts.mode)

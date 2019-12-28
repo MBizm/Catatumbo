@@ -25,13 +25,13 @@ class NeoPixelMultiBase(NeoPixelBase):
     """
     STATIC CLASS ATTRIBUTES
     """
-
     
     """
     OBJECT ATTRIBUTES
     """
     # the set of led strip represented by NeoPixelBase classes
     __stripList = None
+    __config_parser = None
 
     """
         constructor for multi strip base class
@@ -71,8 +71,9 @@ class NeoPixelMultiBase(NeoPixelBase):
         self.__stripList = []
         
         # read config for led strips
-        cp = configparser.RawConfigParser()
-        cp.read(config_file)
+        self.__config_parser = configparser.RawConfigParser()
+        self.__config_parser.read(config_file)
+        # configparser does not offer any flush method, so no destruction required?
 
         # loop all individual led strip configurations
         counter = 1
@@ -80,9 +81,9 @@ class NeoPixelMultiBase(NeoPixelBase):
             try:
                 section = "Strip" + str(counter)
 
-                strip = NeoPixelMultiBase.__Config__(pixelpin       = cp.get(section, "PixelPin" + str(counter)),
-                                                     pixelnum       = cp.get(section, "PixelNum" + str(counter)),
-                                                     pixelorder     = cp.get(section, "PixelOrder" + str(counter)),
+                strip = NeoPixelMultiBase.__Config__(pixelpin       = self.__config_parser.get(section, "PixelPin" + str(counter)),
+                                                     pixelnum       = self.__config_parser.get(section, "PixelNum" + str(counter)),
+                                                     pixelorder     = self.__config_parser.get(section, "PixelOrder" + str(counter)),
                                                      color_schema   = color_schema)
                 self.addStrip(strip)
                 
@@ -95,7 +96,7 @@ class NeoPixelMultiBase(NeoPixelBase):
         
         # set brightness level for all strips
         try:
-            self.setBrightness(cp.get("GeneralConfiguration", "Brightness"))
+            self.setBrightness(self.__config_parser.get("GeneralConfiguration", "Brightness"))
         except (NoOptionError, NoSectionError):
             self.setBrightness(0.3)
             
@@ -134,7 +135,22 @@ class NeoPixelMultiBase(NeoPixelBase):
     """ 
     def countStrips(self):
         return len(self.__stripList)
+    
+    """
+        returns a property from specified config file
         
+        :param    section: section in config file
+        :type     section: str
+        :param    attribute: required attribute
+        :type     attribute: str
+        :returns: property value
+    """
+    def getConfigProperty(self, section, attribute):
+        try:
+            ret = self.__config_parser.get(section, attribute)
+        except (NoOptionError, NoSectionError):
+            return None;
+        return ret;      
 
     ########################################
     #        OVERRIDEN MEMBER METHODS      #
