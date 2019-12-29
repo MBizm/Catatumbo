@@ -39,7 +39,7 @@ RECT_H = 20
 """
     reads defined values from property file - CONFIG.properties at same location
     property file consists of two sections:
-        - [ConnectionData]:APIKeyDomain, APIKeyName(optional), APIKey
+        - [OWMData]:APIKeyDomain, APIKeyName(optional), APIKey
         - [ApplicationData]:CityID, CityName, Country
     
     :param    p_section: property file section
@@ -295,7 +295,7 @@ def paintScalePeriod(canvas, t, tm, c, cm, r, rm, index, startdate, period):
 """
 if __name__ == '__main__':
     #get your personal key
-    API_KEY = getProperty('Forecast-ConnectionData', 'APIKey');
+    API_KEY = getProperty('Forecast-OWMData', 'APIKey');
     if(API_KEY is None):
         API_KEY = input('Enter your API Key: ')
     

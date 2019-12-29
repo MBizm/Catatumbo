@@ -39,13 +39,15 @@ from adafruit.core.util.cmd_functions import cmd_options
 from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
 from adafruit.core.util.utility import numberToBase
 from threading import Timer
-import time
 from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
+from astral import Location
+from datetime import datetime, timedelta
+import os
 
 class NeoPixelForecast(NeoPixelMultiBase):
     
     __version__ = 0.1
-    __updated__ = '2019-12-28'
+    __updated__ = '2019-12-29'
 
     """
     STATIC CLASS ATTRIBUTES
@@ -62,7 +64,12 @@ class NeoPixelForecast(NeoPixelMultiBase):
     OBJECT ATTRIBUTES
     """
     owm = None
+    # geo coordinates for desired location
     cityID = 0
+    cityName = None
+    cityCountry = None
+    cityLon = 0.0
+    cityLat = 0.0
 
     """
         TODO adapt config to Forecast requirement
@@ -112,60 +119,91 @@ class NeoPixelForecast(NeoPixelMultiBase):
         this will instantiate the OpenWeatherMap instance and read country, city, ... data
         
         property file consists of two sections:
-            - [ConnectionData]:APIKeyDomain, APIKeyName(optional), APIKey
+            - [OWMData]:APIKeyDomain, APIKeyName(optional), APIKey
             - [ApplicationData]:CityID, CityName, Country
     """
     def __init_OWM(self):            
         #get your personal key
-        apiKey = self.getConfigProperty('Forecast-ConnectionData', 'APIKey');
-        if(apiKey is None):
+        apiKey = self.getConfigProperty('Forecast-OWMData', 'APIKey');
+        if apiKey is None:
             apiKey = input('Enter your API Key: ')
         
         #get location for request
         #TODO get location via IP: https://ipinfo.io/developers
+        self.cityLon = self.getConfigProperty('Forecast-ApplicationData', 'Longitude')
+        self.cityLat = self.getConfigProperty('Forecast-ApplicationData', 'Latitude')
         self.cityID = self.getConfigProperty('Forecast-ApplicationData', 'CityID')
-        city = self.getConfigProperty('Forecast-ApplicationData', 'CityName')
-        country = self.getConfigProperty('Forecast-ApplicationData', 'Country')
-        if(self.cityID is None):
-            if(country is None):
-                country = input('Enter your country: ')
-            if(city is None):
-                city = input('Enter your city: ')
-                
+        self.cityName = self.getConfigProperty('Forecast-ApplicationData', 'CityName')
+        self.cityCountry = self.getConfigProperty('Forecast-ApplicationData', 'Country')
+        
+        if self.cityLon is not None:
+            self.cityLon = float(self.cityLon)
+        if self.cityLat is not None:
+            self.cityLat = float(self.cityLat)
+               
         #initiate OpenWeatherMap object
         self.owm = OWM(apiKey);
-        #get city id for defined location
-        if(self.cityID is None):
-            reg = self.owm.city_id_registry()
+        reg = self.owm.city_id_registry()
+                
+        #check whether we can get get lon/lat and id based on cityName and cityCountry
+        if self.cityName is not None and self.cityCountry is not None:
+            if self.cityLat is None or self.cityLon is None:
+                try:
+                    locs = reg.locations_for(self.cityName, self.cityCountry, matching='exact')
+                    #always select first from list
+                    loc = locs.pop(0)
+                    self.cityID = int(loc[0])
+                    self.cityLon = float(loc[2])
+                    self.cityLon = float(loc[3])
+                except (ValueError, IndexError):
+                    pass
+        else:
+            # fallback to location determined by external IP of Raspberry
+            self.cityName       = self.localCity
+            self.cityCountry    = self.localCountry
+            self.cityLat        = self.localLat
+            self.cityLon        = self.localLon 
+        
+        # final try to get city id for defined location
+        if self.cityID is None:
             try:
-                locs = reg.ids_for(city, country, matching='exact')
+                locs = reg.ids_for(self.cityName, self.cityCountry, matching='exact')
                 #always select first from list
                 loc = locs.pop(0)
                 self.cityID = int(loc[0])
             except (ValueError, IndexError):
-                raise RuntimeError('Defined city could not be found: {0} ({1})'.format(city, self.cityID))
-            
-        print("cityID: " + str(self.cityID))
+                pass
+        
+        if self.cityID is None and self.cityLat == self.cityLon == None:          
+            raise RuntimeError('Defined city could not be found: {0}'.format(self.cityName))
     
+    
+    ########################################
+    #         COLOR SCALE METHODS          #
+    ######################################## 
     """
         fills weather forecast data based on defined mode
         
         :param    color_mode: forecast period to be display, 
-                    see MODE_TODAY, MODE_TOMORROW_DAYTIME, MODE_ALL
+                    see MODE_TODAY, MODE_TOMORROW_DAYTIME, MODE_ALL, ...
         :type     color_mode: str
     """
     def fillStrips(self, color_mode = '2'):
         #request forecast
         #https://pyowm.readthedocs.io/en/latest/usage-examples-v2/weather-api-usage-examples.html#getting-weather-forecasts
         try:
-            forecast = self.owm.three_hours_forecast_at_id(int(self.cityID))
+            if self.cityLat is not None and self.cityLon is not None:
+                forecast = self.owm.three_hours_forecast_at_coords(float(self.cityLat),
+                                                                   float(self.cityLon))
+            else:
+                forecast = self.owm.three_hours_forecast_at_id(int(self.cityID))
         except (APIInvalidSSLCertificateError):
-            #TODO need to check how lib would react if max request for free OWM account reached
-            raise RuntimeError('Network error')
+            raise RuntimeError('Network error during OWM call')
 
         # create sampleboard for relevant color slots
         sampleboard = ()
         # calculate offset for current days, forecast is provided in 3 hour blocks
+        # TODO this requires adaption to timezone of defined location, current implementation considers local timezone!
         offset = int(forecast.when_starts('date').hour / 3)
         # mask for period selection, always representing full days including today, stored in big endian representation
         mask = 0 
@@ -449,12 +487,179 @@ class NeoPixelForecast(NeoPixelMultiBase):
         
         return c
 
+    ########################################
+    #     BRIGHTNESS ADAPTION METHODS      #
+    ######################################## 
+    """
+        adapts the strpi brightness based on sunset/sunrise time for current location
+    """
+    def adaptBrightnessToLocalDaytime(self):
         
+        if self.AutoBrightnessMAX is not None and \
+            self.AutoBrightnessMIN is not None and \
+            self.localCity is not None and \
+            self.localCountry is not None and \
+            self.localLat is not None and \
+            self.localLon is not None:
+            # create Astral Location object for sunset/sunrise calculation
+            # https://astral.readthedocs.io/en/stable/index.html
+            astralLoc = Location((self.localCity,
+                                  self.localCountry,
+                                  self.localLat,
+                                  self.localLon,
+                                  # local timezone, see https://stackoverflow.com/questions/2720319/python-figure-out-local-timezone
+                                  '/'.join(os.path.realpath('/etc/localtime').split('/')[-2:]),
+                                  # well, anyone has a lucky number?
+                                  # based on https://www.quora.com/What-is-the-average-elevation-of-Earth-above-the-ocean-including-land-area-below-sea-level-What-is-the-atmospheric-pressure-at-that-elevation
+                                  #  "The average elevation of the land is 800m, covering 29% of the surface."
+                                  # and https://ngdc.noaa.gov/mgg/global/etopo1_surface_histogram.html
+                                  #  "average land height: 797m"
+                                  500))
+            
+            # ensure we are using the same timezone for all to compare
+            sunrise = astralLoc.sunrise()
+            sunset  = astralLoc.sunset()
+            now     = datetime.now(sunrise.tzinfo)
+            
+            print("now: {0}, sunrise: {1}, sunset: {2}".format(now, sunrise, sunset))
+
+            # check if night time
+            if now < sunrise or now > sunset:
+                # sleep mode in dark hours
+                self.setBrightness(self.AutoBrightnessMIN)
+            # assure the fading process for brightness increase is started after sunrise within the boundaries of the update cycle
+            elif now < sunrise + timedelta(seconds = self.UpdateFrequency):
+                # see method description for initial parametrization
+                fadeBrightness(np, self.AutoBrightnessMIN, self.AutoBrightnessMAX, 600, True)
+            # assure the fading process for brightness decrease is started before sunset within the boundaries of the update cycle
+            elif now > sunset - timedelta(seconds = self.UpdateFrequency):
+                fadeBrightness(np, self.AutoBrightnessMAX, self.AutoBrightnessMIN, 600, True)
+            else:
+                # daytime mode
+                self.setBrightness(self.AutoBrightnessMAX)            
+
+
+########################################
+#        THREAD UTILITY METHOD         #
+########################################
+"""
+    regular thread update method for updating forecast values
+    
+    :param    color_mode: selected forecast mode; see MODE_TODAY, MODE_TOMORROW_DAYTIME, MODE_ALL
+    :type     color_mode: str
+"""      
 def queueUpdate(np, color_mode):
-    print(time.ctime())
-    # update every half an hour
-    Timer(1800, queueUpdate, (np, color_mode)).start()
+    # next run - update every half an hour
+    Timer(np.UpdateFrequency, queueUpdate, (np, color_mode)).start()
+    
+    #the tasks...
+    # update color scale
     np.fillStrips(color_mode)
+    # adapt brightness
+    np.adaptBrightnessToLocalDaytime()
+    
+"""
+    utility method for separate thread that fades the brightness level in increasing velocity
+    from startLevel brightness to stopLevel brightness.
+    
+    Looking at the most distant values of startLevel = 1.0 and stopLevel = 0.0
+    and a initial waitTime of 10min + intermediate adaption time of 6 sec (decrease of 0.01 by intermediate step):
+        iteration duration (min)    10    5    2.5    1.25    0.625    0.3125    0.15625
+        brightness (after itera.)   1.0   0.5  0.25   0.125   0.0625   0.03125   0.015625
+        time interm. trans. (min)   5     2.5  1.25   0.625   0.3125   0.15625
+    
+    :param    startLevel: initial brightness value, value between 1.0 and 0.0
+    :type     startLevel: float
+    :param    stopLevel: destination brightness value, value between 1.0 and 0.0
+    :type     stopLevel: float
+    :param    waitTime: seconds to wait till next iteration
+    :type     waitTime: int
+    :param    newMainThread: defines whether this is a main iteration with decreasing step size and time or an intermediate iteration with constant time and step size
+                                if true, it will set up a next iteration of the main thread
+    :type     newMainThread: boolean
+    :param    delta: subtraction/addition value for brightness adaption, used in intermediate iterations
+    :type     delta: float
+"""
+def fadeBrightness(np, startLevel, stopLevel, waitTime, newMainThread, delta = 0):
+    intermediateStepSize = 0.01
+    
+    # define stop criteria
+    if abs(startLevel - stopLevel) < intermediateStepSize:
+        # stop main iteration
+        return
+    if startLevel > stopLevel and startLevel + delta < stopLevel:
+        # stop intermediate iteration
+        return
+    if startLevel < stopLevel and startLevel + delta > stopLevel:
+        # stop intermediate iteration
+        return
+    
+    # TODO test
+    print("{0} - current brightness: {1}".format(datetime.now().strftime("%A, %d. %B %Y %I:%M%p"), startLevel + delta))
+    # set current brightness
+    np.setBrightness(startLevel + delta)
+    
+    # start intermediate decrease with constant 0.01 step size every 6 seconds
+    if startLevel > stopLevel:
+        # fading out - set new lower boundary for intermediate iteration started by main iteration
+        Timer(6, 
+              fadeBrightness,
+              # parameter list
+              (np, 
+               startLevel,
+               stopLevel + ((startLevel - stopLevel) / 2) if newMainThread == True else stopLevel,
+               6,
+               False,
+               delta - intermediateStepSize)
+              ).start()
+        # for testing purpose without threading
+        #self.fadeBrightness(startLevel, stopLevel + ((startLevel - stopLevel) / 2) if newMainThread == True else stopLevel, 
+        #                    6, False, delta - intermediateStepSize)
+    elif startLevel < stopLevel:
+        # fading in - set new upper boundary for intermediate iteration started by main iteration
+        Timer(6, 
+              fadeBrightness,
+              # parameter list
+              (np, 
+               startLevel,
+               stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
+               6,
+               False,
+               delta + intermediateStepSize)
+              ).start()          
+        # for testing purpose without threading
+        #np.fadeBrightness(startLevel, stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
+        #                    6, False, delta + intermediateStepSize)
+    
+    # start new main iteration for adjustable iteration
+    if newMainThread == True:
+        if startLevel > stopLevel:
+            # fading out - decrease brightness by half the distance between current startLevel and stopLevel and cut time by half
+            Timer(waitTime, 
+                  fadeBrightness,
+                  # parameter list
+                  (np, 
+                   startLevel - ((startLevel - stopLevel) / 2),
+                   stopLevel,
+                   waitTime / 2,
+                   True)
+                  ).start()
+            # for testing purpose without threading
+            #np.fadeBrightness(startLevel - ((startLevel - stopLevel) / 2), stopLevel, waitTime / 2, True)
+        elif startLevel < stopLevel:
+            # fading in - decrease brightness by half the distance between current startLevel and stopLevel and cut time by half
+            Timer(waitTime, 
+                  fadeBrightness,
+                  # parameter list
+                  (np, 
+                   startLevel + ((stopLevel - startLevel) / 2),
+                   stopLevel,
+                   waitTime / 2,
+                   True)
+                  ).start()
+            # for testing purpose without threading
+            #np.fadeBrightness(startLevel + ((stopLevel - startLevel) / 2), stopLevel, waitTime / 2, True)
+    
 
 ########################################
 #                MAIN                  #
@@ -471,7 +676,7 @@ if __name__ == '__main__':
     np = NeoPixelForecast(config_file   = 'test/adafruit/forecast/config/FORECASTCONFIG.properties',
                           color_schema  = ForecastNeoPixelColors)
     
-    # start reoetitive update
+    # start repetitive update
     queueUpdate(np, opts.mode)
     
     if opts.bright is not None:
