@@ -19,6 +19,10 @@ import neopixel
 from adafruit.core.neopixel_colors import NeoPixelColors
 import configparser
 from configparser import NoOptionError, NoSectionError
+import ipinfo
+from adafruit.core.util.utility import getExternalIPAddress
+from ipinfo.exceptions import RequestQuotaExceededError
+
 
 class NeoPixelMultiBase(NeoPixelBase):
     
@@ -30,8 +34,23 @@ class NeoPixelMultiBase(NeoPixelBase):
     OBJECT ATTRIBUTES
     """
     # the set of led strip represented by NeoPixelBase classes
-    __stripList = None
+    __stripList     = None
     __config_parser = None
+    
+    # brightness adaption location resolved by external IP resolution
+    localCity       = None
+    localCountry    = None
+    localLat        = None
+    localLon        = None
+    
+    
+    # brightness adaption range
+    AutoBrightnessMIN = None
+    AutoBrightnessMAX = None
+    
+    # time between updating the brightness of the strip, 1800 sec (30min)
+    # may be also used for other purpose by derived classes, e.g. forecast frequency
+    UpdateFrequency   = 1800
 
     """
         constructor for multi strip base class
@@ -95,11 +114,31 @@ class NeoPixelMultiBase(NeoPixelBase):
             counter = counter + 1
         
         # set brightness level for all strips
-        try:
-            self.setBrightness(self.__config_parser.get("GeneralConfiguration", "Brightness"))
-        except (NoOptionError, NoSectionError):
-            self.setBrightness(0.3)
-            
+        brightness = self.getConfigProperty("GeneralConfiguration", "Brightness")
+        self.setBrightness(0.3 if brightness is None else brightness)
+        
+        # get current location for brightness adaption
+        ipInfoKey = self.getConfigProperty('Forecast-IPInfoData', 'APIKey')
+        if ipInfoKey is not None:            
+            try:
+                # determine location by external IP
+                ipInfo = ipinfo.getHandler(ipInfoKey)
+                ipDetails = ipInfo.getDetails(getExternalIPAddress())
+                
+                self.localCity    = ipDetails.city
+                self.localCountry = ipDetails.country
+                self.localLat     = float(ipDetails.latitude)
+                self.localLon     = float(ipDetails.longitude)
+            except (RequestQuotaExceededError, AttributeError):
+                pass
+        
+        # check if range for brightness adaption is provided
+        self.AutoBrightnessMIN = self.getConfigProperty("GeneralConfiguration", "AutoBrightnessMIN")
+        self.AutoBrightnessMAX = self.getConfigProperty("GeneralConfiguration", "AutoBrightnessMAX")
+        if self.AutoBrightnessMAX is not None:
+            self.AutoBrightnessMAX = float(self.AutoBrightnessMAX)
+        if self.AutoBrightnessMIN is not None:
+            self.AutoBrightnessMIN = float(self.AutoBrightnessMIN)
     
     ########################################
     #            UTILITY METHODS           #

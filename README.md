@@ -35,12 +35,18 @@ _REMARK: Multi-strip support currently depends on adapted Adafruit Blinka lib. T
 # Projects
 ## Forecast
 Visualizes the weather forecast based on OpenWeatherMap data.
-**This project currently awaits porting to Adafruit. It will be available soon.** 
-### Forecast-VisualizeTk
-Is a simple Python script that renders the weather forecast for temperature (R), cloud coverage (G), rain/snow (B) in RGB scales as well a combined scale.
-![Forecast visualization example for London showing weather forecast for the next days in color bars](https://github.com/MBizm/Catatumbo/blob/master/docs/forecast/visualizeTk/example-London.png)
 ### Forecast-FruitStrip
-*#### coming soon ####*
+Want to have a permanent overview of the weather condition in the next days? Don't like to be surprised by sudden rain or snow fall?
+The forecast module represents the weather forecast as color code on your led strip. Select between a range of today up until in 5 days, shown as 3 hours blocks. It divides into warm, medium and cold temperatures. For each of the temperature ranges, it will deviate the color to indicate the presence of clouds, rain and snow.
+How to get started? Simply configure the configuration file test/adafruit/forecast/config/FORECASTCONFIG.properties with the following attributes:
+
+*   An OpenWeatherMap account key - simply register at [https://openweathermap.org/] for a free account 
+*   An IPInfo account key - simply register at [https://ipinfo.io/] for a free account
+*	Your led strip(s) configuration
+
+**That's all!** You may define a location different than your current location by defining its longitude/latitude or city name/country. Otherwise Catatumbo will automatically take your current location for weather forecast.
+_For an overview how the weather will be rendered with your defined configuration, you may have a look into [Tk Forecast script](https://github.com/MBizm/Catatumbo/blob/master/src/test/visualizeTk/forecast/CityBarChart.py)._
+
 
 ## Stock
 Visualizes a defined share and compares its performance against its leading index. The timeline will represent the performance in the form of a color graph, letting you know when your share performed well or bad and how it performed in comparison to the leading index.
@@ -52,4 +58,6 @@ A simple script that shows the full color spectrum how share price and leading i
 
 # Credits
 - [OpenWeatherMap](https://openweathermap.org/) - weather data is provided under the [Open Data Commons Open Database License(ODbL)](http://opendatacommons.org/licenses/odbl/)
+- [IPInfo](https://github.com/ipinfo/python)
+- [Astral](https://github.com/sffjunkie/astral)
 - [Adafruit Lib for WS281x SK681x LEDs](https://github.com/adafruit)
