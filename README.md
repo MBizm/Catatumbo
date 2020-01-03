@@ -1,6 +1,8 @@
 # Catatumbo
-Catatumbo is an Adaptive Smart Home Lightning project that lets your home indicate information of relevance for you. Say you want to your led strip to show how your favorite share price correlates to how the the leading index is performing.
-The project is named after the famous weather spectacle *'Faros del Catatumbo'*, showing up as silent thunderstorms over the marshlands of Catatumbo river in Venezuela. 
+Catatumbo is an Adaptive Smart Home Lightning project that lets your home indicate information of relevance for you. It aims to build up light components (led strips) that are distributed across the appartement. Each device being addressed via network or KNX in the future. While each device can foresee a different scene, in special cases they can also act together - e.g. for indicating an alarm situation in the whole appartment. Special focus is on adaptive lightning scenes which indicate real world information via color codes - e.g. stock prices, weather forecasts, social media states. Say you want to your led strip to show how your favorite share price correlates to how the the leading index is performing or just by having your hall stand illuminated in bright blue may indicate that you better take the umbrella along.
+
+The project is named after the famous weather spectacle 'Faros del Catatumbo', showing up as silent thunderstorms over the marshlands of Catatumbo river in Venezuela.
+Let yourself be dragged into the fascination of Catatumbo - Happy weather watching!
 
 # Benefits
 Using the Catatumbo library brings you the following benefits:
