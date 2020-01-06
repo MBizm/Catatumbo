@@ -37,7 +37,7 @@ RECT_W = 20
 RECT_H = 20
 
 """
-    reads defined values from property file - CONFIG.properties at same location
+    reads defined values from property file - test/adafruit/forecast/config/FORECASTCONFIG.properties'
     property file consists of two sections:
         - [OWMData]:APIKeyDomain, APIKeyName(optional), APIKey
         - [ApplicationData]:CityID, CityName, Country
