@@ -100,9 +100,9 @@ class NeoPixelMultiBase(NeoPixelBase):
             try:
                 section = "Strip" + str(counter)
 
-                strip = NeoPixelMultiBase.__Config__(pixelpin       = self.__config_parser.get(section, "PixelPin" + str(counter)),
-                                                     pixelnum       = self.__config_parser.get(section, "PixelNum" + str(counter)),
-                                                     pixelorder     = self.__config_parser.get(section, "PixelOrder" + str(counter)),
+                strip = NeoPixelMultiBase.__Config__(pixelpin       = self.__config_parser.get(section, "PixelPin"),
+                                                     pixelnum       = self.__config_parser.get(section, "PixelNum"),
+                                                     pixelorder     = self.__config_parser.get(section, "PixelOrder"),
                                                      color_schema   = color_schema)
                 self.addStrip(strip)
                 

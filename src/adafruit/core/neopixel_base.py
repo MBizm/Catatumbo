@@ -167,7 +167,7 @@ class NeoPixelBase(object):
             # preset pixel colors according to color space set  
             else:
                 self.setPixel(i, sampleboard[int(i / sectionsize)])
-                print('[' + str(i) + '] ' + str(sampleboard[int(i / sectionsize)]))
+                #print('[' + str(i) + '] ' + str(sampleboard[int(i / sectionsize)]))
         
         # update color values if not done automatically
         self.show() 
