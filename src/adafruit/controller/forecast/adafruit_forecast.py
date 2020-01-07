@@ -56,9 +56,11 @@ class NeoPixelForecast(NeoPixelMultiBase):
     MODE_TODAY_ALL          = '2'
     MODE_TOMORROW_DAYTIME   = '3'
     MODE_TOMORROW_ALL       = '4'
+    MODE_3DAYS_DAYTIME      = '5'
+    MODE_3DAYS_ALL          = '6'
     # TODO better to have 5d forecast aggregated per day?
-    MODE_5DAYS_DAYTIME      = '5'
-    MODE_5DAYS_ALL          = '6'
+    MODE_5DAYS_DAYTIME      = '7'
+    MODE_5DAYS_ALL          = '8'
     
     """
     OBJECT ATTRIBUTES
@@ -70,6 +72,11 @@ class NeoPixelForecast(NeoPixelMultiBase):
     cityCountry = None
     cityLon = 0.0
     cityLat = 0.0
+    # winter mode will adapt the adapt the temperature scale, e.g. >10C is considered high temperature in winter
+    # winterConf will enable winterMode determination based on properties file definition
+    winterConf = False
+    # winterMode is the mode dependent on the time of the year
+    winterMode = False
 
     """
         TODO adapt config to Forecast requirement
@@ -107,6 +114,13 @@ class NeoPixelForecast(NeoPixelMultiBase):
         super().__init__(config_file,
                          color_schema)
         
+        #get non OWM specific properties
+        wc = bool(self.getConfigProperty('Forecast-ApplicationData', 'WinterMode'))
+        if wc is not None:
+            self.winterConf = bool(wc)
+        else:
+            self.winterConf = False
+        
         #init OWM registration
         self.__init_OWM()
 
@@ -126,7 +140,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
         #get your personal key
         apiKey = self.getConfigProperty('Forecast-OWMData', 'APIKey');
         if apiKey is None:
-            apiKey = input('Enter your API Key: ')
+            raise RuntimeError('You need to define an Open Weather Map API key to run the forecast module!')
         
         #get location for request
         #TODO get location via IP: https://ipinfo.io/developers
@@ -210,10 +224,10 @@ class NeoPixelForecast(NeoPixelMultiBase):
         # position marker representing current index in binary representation for comparison with mask
         pos = 1
 
-        if color_mode == type(self).MODE_TOMORROW_DAYTIME:
+        if color_mode == type(self).MODE_TODAY_DAYTIME:
             # masks 6am to 9pm slot the next day
             mask = 0x7C
-        elif color_mode == type(self).MODE_TOMORROW_ALL:
+        elif color_mode == type(self).MODE_TODAY_ALL:
             # masks all forecast blocks from 0am to 11:59pm the next day
             mask = 0xFF
         elif color_mode == type(self).MODE_TOMORROW_DAYTIME:
@@ -222,8 +236,14 @@ class NeoPixelForecast(NeoPixelMultiBase):
         elif color_mode == type(self).MODE_TOMORROW_ALL:
             # masks all forecast blocks from 0am to 11:59pm the next day
             mask = 0xFF00
+        elif color_mode == type(self).MODE_3DAYS_DAYTIME:
+            # masks 6am to 9pm slot all next 3 days including today
+            mask = 0x7C7C7C
+        elif color_mode == type(self).MODE_3DAYS_ALL:
+            # masks all forecast blocks from 0am to 11:59pm the next 3 day including today
+            mask = 0xFFFFFF
         elif color_mode == type(self).MODE_5DAYS_DAYTIME:
-            # masks 6am to 9pm slot all next 5 days
+            # masks 6am to 9pm slot all next 5 days including today
             mask = 0x7C7C7C7C7C
         elif color_mode == type(self).MODE_5DAYS_ALL:
             # just everything...
@@ -231,6 +251,13 @@ class NeoPixelForecast(NeoPixelMultiBase):
         
         # prepare position marker to current time of the day
         pos = pos << offset
+        
+        # check whether winterMode was configured in properties
+        if self.winterConf:
+            # TODO set winterMode dependent on the time of the year dynamically
+            # winterMode shall be activated based on winter-/summertime
+            self.winterMode = True
+        
         
         # iterate through weather forecast blocks
         # forecast is provided for 5 days in 8 blocks per day
@@ -405,7 +432,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
         # segregation by color range
         # TODO differentiation based on summer/winter period??
         # low temp
-        elif temp <= 10:
+        elif ( (not(self.winterMode and temp <= 10)) or (self.winterMode and temp <= 0) ) :
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
@@ -431,7 +458,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
                     c = ForecastNeoPixelColors.W_LOWTMP
                     debug = "low temp"
         # mid temp
-        elif temp <= 25:
+        elif (not(self.winterMode and temp <= 25)) or (self.winterMode and temp <= 10):
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
@@ -457,7 +484,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
                     c = ForecastNeoPixelColors.W_MIDTMP
                     debug = "mid temp"
         # high temp
-        elif temp > 25:
+        elif (not(self.winterMode and temp > 25)) or (self.winterMode and temp > 10):
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
