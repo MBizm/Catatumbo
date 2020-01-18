@@ -37,7 +37,7 @@ from pyowm import OWM
 from adafruit.core.neopixel_multibase import NeoPixelMultiBase
 from adafruit.core.util.cmd_functions import cmd_options
 from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
-from adafruit.core.util.utility import numberToBase
+from adafruit.core.util.utility import numberToBase, is_dst
 from threading import Timer
 from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
 from astral import Location
@@ -116,7 +116,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
         
         #get non OWM specific properties
         wc = bool(self.getConfigProperty('Forecast-ApplicationData', 'WinterMode'))
-        if wc is not None:
+        if wc is not None:            
             self.winterConf = bool(wc)
         else:
             self.winterConf = False
@@ -212,7 +212,10 @@ class NeoPixelForecast(NeoPixelMultiBase):
             else:
                 forecast = self.owm.three_hours_forecast_at_id(int(self.cityID))
         except (APIInvalidSSLCertificateError):
-            raise RuntimeError('Network error during OWM call')
+            # network temporarily not available
+            print('Network error during OWM call')
+            # stop processing here
+            return
 
         # create sampleboard for relevant color slots
         sampleboard = ()
@@ -254,9 +257,8 @@ class NeoPixelForecast(NeoPixelMultiBase):
         
         # check whether winterMode was configured in properties
         if self.winterConf:
-            # TODO set winterMode dependent on the time of the year dynamically
             # winterMode shall be activated based on winter-/summertime
-            self.winterMode = True
+            self.winterMode = not(is_dst(timezone=self.localTimeZone))
         
         
         # iterate through weather forecast blocks
@@ -432,7 +434,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
         # segregation by color range
         # TODO differentiation based on summer/winter period??
         # low temp
-        elif ( (not(self.winterMode and temp <= 10)) or (self.winterMode and temp <= 0) ) :
+        elif ( (not(self.winterMode) and temp <= 10) or (self.winterMode and temp <= 0) ) :
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
@@ -458,7 +460,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
                     c = ForecastNeoPixelColors.W_LOWTMP
                     debug = "low temp"
         # mid temp
-        elif (not(self.winterMode and temp <= 25)) or (self.winterMode and temp <= 10):
+        elif (not(self.winterMode) and temp <= 25) or (self.winterMode and temp <= 10):
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
@@ -484,7 +486,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
                     c = ForecastNeoPixelColors.W_MIDTMP
                     debug = "mid temp"
         # high temp
-        elif (not(self.winterMode and temp > 25)) or (self.winterMode and temp > 10):
+        elif (not(self.winterMode) and temp > 25) or (self.winterMode and temp > 10):
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
