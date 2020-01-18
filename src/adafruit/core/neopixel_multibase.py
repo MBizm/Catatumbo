@@ -13,15 +13,16 @@ TODO
 @deffield    created: December 2019
 @deffield    updated: Updated
 '''
-from adafruit.core.neopixel_base import NeoPixelBase
 import board
 import neopixel
-from adafruit.core.neopixel_colors import NeoPixelColors
 import configparser
-from configparser import NoOptionError, NoSectionError
 import ipinfo
+
 from adafruit.core.util.utility import getExternalIPAddress
 from ipinfo.exceptions import RequestQuotaExceededError
+from configparser import NoOptionError, NoSectionError
+from adafruit.core.neopixel_colors import NeoPixelColors
+from adafruit.core.neopixel_base import NeoPixelBase
 
 
 class NeoPixelMultiBase(NeoPixelBase):
@@ -42,6 +43,7 @@ class NeoPixelMultiBase(NeoPixelBase):
     localCountry    = None
     localLat        = None
     localLon        = None
+    localTimeZone   = None
     
     
     # brightness adaption range
@@ -125,10 +127,11 @@ class NeoPixelMultiBase(NeoPixelBase):
                 ipInfo = ipinfo.getHandler(ipInfoKey)
                 ipDetails = ipInfo.getDetails(getExternalIPAddress())
                 
-                self.localCity    = ipDetails.city
-                self.localCountry = ipDetails.country
-                self.localLat     = float(ipDetails.latitude)
-                self.localLon     = float(ipDetails.longitude)
+                self.localCity      = ipDetails.city
+                self.localCountry   = ipDetails.country
+                self.localLat       = float(ipDetails.latitude)
+                self.localLon       = float(ipDetails.longitude)
+                self.localTimeZone  = ipDetails.timezone
             except (RequestQuotaExceededError, AttributeError):
                 pass
         
