@@ -270,7 +270,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
             if (mask & pos) > 0:
                 # get 3-byte or 4-byte color representation based on weather condition
                 # TODO check for storm attribute
-                sampleboard = sampleboard + (self.mapWeatherToRGB(next(iter(weather.get_temperature(unit='celsius').values())),
+                sampleboard = sampleboard + (self.mapWeatherToRGB(weather.get_temperature(unit='celsius')['temp'],
                                                                    weather.get_clouds(),
                                                                    0 if len(weather.get_rain()) == 0 else list(weather.get_rain().values())[0],
                                                                    False,
