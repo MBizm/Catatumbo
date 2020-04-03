@@ -7,3 +7,5 @@ pytz==2019.1
 numpy==1.17.1
 pyowm==2.10.0
 board==1.0
+flask==1.1.1
+flask_cors

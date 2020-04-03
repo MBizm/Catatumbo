@@ -15,14 +15,13 @@ TODO
 '''
 import board
 import neopixel
-import configparser
 import ipinfo
 
 from adafruit.core.util.utility import getExternalIPAddress
 from ipinfo.exceptions import RequestQuotaExceededError
-from configparser import NoOptionError, NoSectionError
 from adafruit.core.neopixel_colors import NeoPixelColors
 from adafruit.core.neopixel_base import NeoPixelBase
+from adafruit.core.util.configurations import Configurations
 
 
 class NeoPixelMultiBase(NeoPixelBase):
@@ -36,7 +35,6 @@ class NeoPixelMultiBase(NeoPixelBase):
     """
     # the set of led strip represented by NeoPixelBase classes
     __stripList     = None
-    __config_parser = None
     
     # brightness adaption location resolved by external IP resolution
     localCity       = None
@@ -79,48 +77,48 @@ class NeoPixelMultiBase(NeoPixelBase):
                 PixelNum3=145
                 PixelOrder3=GRB
         
-        :param    config_file: the location of the properties file, relative to runtime execution path
-        :type     config_file: str
         :param    color_schema: the color schema class which defined the color values, e.g. NeoPixelColors or derived classes
         :type     color_schema: class
     """  
-    def __init__(self, config_file, color_schema):
+    def __init__(self, color_schema):
         
         # no initialization of super constructor to avoid led strip initialization
         
         # the set of led strip represented by NeoPixelBase classes
         self.__stripList = []
         
-        # read config for led strips
-        self.__config_parser = configparser.RawConfigParser()
-        self.__config_parser.read(config_file)
-        # configparser does not offer any flush method, so no destruction required?
+        config = Configurations()
+        
 
         # loop all individual led strip configurations
         counter = 1
         while counter > -1:
-            try:
-                section = "Strip" + str(counter)
-
-                strip = NeoPixelMultiBase.__Config__(pixelpin       = self.__config_parser.get(section, "PixelPin"),
-                                                     pixelnum       = self.__config_parser.get(section, "PixelNum"),
-                                                     pixelorder     = self.__config_parser.get(section, "PixelOrder"),
-                                                     color_schema   = color_schema)
-                self.addStrip(strip)
-                
-            except (NoOptionError, NoSectionError):
+            section = "Strip" + str(counter)
+            
+            # check whether strip enumerator has been defined
+            if not config.hasSection(section):
                 counter = -1
                 # ensure we directly step out of loop
                 continue
             
+            pp = config.getConfigProperty(section, "PixelPin")
+            pn = config.getConfigProperty(section, "PixelNum")
+            po = config.getConfigProperty(section, "PixelOrder")
+
+            strip = NeoPixelMultiBase.__Config__(pixelpin       = pp,
+                                                 pixelnum       = pn,
+                                                 pixelorder     = po,
+                                                 color_schema   = color_schema)
+            self.addStrip(strip)
+            
             counter = counter + 1
         
         # set brightness level for all strips
-        brightness = self.getConfigProperty("GeneralConfiguration", "Brightness")
+        brightness = config.getBrightness()
         self.setBrightness(0.3 if brightness is None else brightness)
         
         # get current location for brightness adaption
-        ipInfoKey = self.getConfigProperty('Forecast-IPInfoData', 'APIKey')
+        ipInfoKey = config.getIPInfoKey()
         if ipInfoKey is not None:            
             try:
                 # determine location by external IP
@@ -136,12 +134,8 @@ class NeoPixelMultiBase(NeoPixelBase):
                 pass
         
         # check if range for brightness adaption is provided
-        self.AutoBrightnessMIN = self.getConfigProperty("GeneralConfiguration", "AutoBrightnessMIN")
-        self.AutoBrightnessMAX = self.getConfigProperty("GeneralConfiguration", "AutoBrightnessMAX")
-        if self.AutoBrightnessMAX is not None:
-            self.AutoBrightnessMAX = float(self.AutoBrightnessMAX)
-        if self.AutoBrightnessMIN is not None:
-            self.AutoBrightnessMIN = float(self.AutoBrightnessMIN)
+        self.AutoBrightnessMIN = config.getAutoBrightnessMin()
+        self.AutoBrightnessMAX = config.getAutoBrightnessMax()
     
     ########################################
     #            UTILITY METHODS           #
@@ -176,23 +170,7 @@ class NeoPixelMultiBase(NeoPixelBase):
         :returns: number of led strips
     """ 
     def countStrips(self):
-        return len(self.__stripList)
-    
-    """
-        returns a property from specified config file
-        
-        :param    section: section in config file
-        :type     section: str
-        :param    attribute: required attribute
-        :type     attribute: str
-        :returns: property value
-    """
-    def getConfigProperty(self, section, attribute):
-        try:
-            ret = self.__config_parser.get(section, attribute)
-        except (NoOptionError, NoSectionError):
-            return None;
-        return ret;      
+        return len(self.__stripList)     
 
     ########################################
     #        OVERRIDEN MEMBER METHODS      #
@@ -204,7 +182,7 @@ class NeoPixelMultiBase(NeoPixelBase):
             # cast
             strip.__class__ = NeoPixelBase
             
-            strip.setBrightness(float(brightness))
+            strip.setBrightness(brightness)
             
 
     """

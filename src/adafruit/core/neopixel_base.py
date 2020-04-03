@@ -120,7 +120,7 @@ class NeoPixelBase(object):
     TODO
     """
     def setBrightness(self, brightness):
-        self.__strip.brightness = brightness
+        self.__strip.brightness = float(brightness)
         self.__strip.show()
         #print('brightness level: ' + str(brightness))
 

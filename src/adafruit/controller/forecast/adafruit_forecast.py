@@ -38,11 +38,12 @@ from adafruit.core.neopixel_multibase import NeoPixelMultiBase
 from adafruit.core.util.cmd_functions import cmd_options
 from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
 from adafruit.core.util.utility import numberToBase, is_dst
-from threading import Timer
 from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
 from astral import Location
 from datetime import datetime, timedelta
 import os
+from adafruit.core.util.configurations import Configurations
+from adafruit.core.util.update_thread import queueUpdate, fadeBrightness
 
 class NeoPixelForecast(NeoPixelMultiBase):
     
@@ -104,25 +105,20 @@ class NeoPixelForecast(NeoPixelMultiBase):
                 PixelNum3=145
                 PixelOrder3=GRB
         
-        :param    config_file: the location of the properties file, relative to runtime execution path
-        :type     config_file: str
         :param    color_schema: the color schema class which defined the color values, e.g. NeoPixelColors or derived classes
         :type     color_schema: class
     """  
-    def __init__(self, config_file, color_schema):
+    def __init__(self, color_schema):
         
-        super().__init__(config_file,
-                         color_schema)
+        super().__init__(color_schema)
         
-        #get non OWM specific properties
-        wc = bool(self.getConfigProperty('Forecast-ApplicationData', 'WinterMode'))
-        if wc is not None:            
-            self.winterConf = bool(wc)
-        else:
-            self.winterConf = False
+        config = Configurations()
+        
+        #get non OWM specific properties          
+        self.winterConf = config.isWinterMode()
         
         #init OWM registration
-        self.__init_OWM()
+        self.__init_OWM(config)
 
     ########################################
     #            UTILITY METHODS           #
@@ -136,24 +132,19 @@ class NeoPixelForecast(NeoPixelMultiBase):
             - [OWMData]:APIKeyDomain, APIKeyName(optional), APIKey
             - [ApplicationData]:CityID, CityName, Country
     """
-    def __init_OWM(self):            
+    def __init_OWM(self, config):            
         #get your personal key
-        apiKey = self.getConfigProperty('Forecast-OWMData', 'APIKey');
+        apiKey = config.getOWMKey();
         if apiKey is None:
             raise RuntimeError('You need to define an Open Weather Map API key to run the forecast module!')
         
         #get location for request
         #TODO get location via IP: https://ipinfo.io/developers
-        self.cityLon = self.getConfigProperty('Forecast-ApplicationData', 'Longitude')
-        self.cityLat = self.getConfigProperty('Forecast-ApplicationData', 'Latitude')
-        self.cityID = self.getConfigProperty('Forecast-ApplicationData', 'CityID')
-        self.cityName = self.getConfigProperty('Forecast-ApplicationData', 'CityName')
-        self.cityCountry = self.getConfigProperty('Forecast-ApplicationData', 'Country')
-        
-        if self.cityLon is not None:
-            self.cityLon = float(self.cityLon)
-        if self.cityLat is not None:
-            self.cityLat = float(self.cityLat)
+        self.cityLon        = config.getLongitude()
+        self.cityLat        = config.getLatitude()
+        self.cityID         = config.getCityID()
+        self.cityName       = config.getCityName()
+        self.cityCountry    = config.getCityCountry()
                
         #initiate OpenWeatherMap object
         self.owm = OWM(apiKey);
@@ -210,7 +201,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
                 forecast = self.owm.three_hours_forecast_at_coords(float(self.cityLat),
                                                                    float(self.cityLon))
             else:
-                forecast = self.owm.three_hours_forecast_at_id(int(self.cityID))
+                forecast = self.owm.three_hours_forecast_at_id(self.cityID)
         except (APIInvalidSSLCertificateError):
             # network temporarily not available
             print('Network error during OWM call')
@@ -521,6 +512,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
     ######################################## 
     """
         adapts the strpi brightness based on sunset/sunrise time for current location
+        TODO downport to base class
     """
     def adaptBrightnessToLocalDaytime(self):
         
@@ -568,126 +560,6 @@ class NeoPixelForecast(NeoPixelMultiBase):
                 self.setBrightness(self.AutoBrightnessMAX)            
 
 
-########################################
-#        THREAD UTILITY METHOD         #
-########################################
-"""
-    regular thread update method for updating forecast values
-    
-    :param    color_mode: selected forecast mode; see MODE_TODAY, MODE_TOMORROW_DAYTIME, MODE_ALL
-    :type     color_mode: str
-"""      
-def queueUpdate(np, color_mode):
-    # next run - update every half an hour
-    Timer(np.UpdateFrequency, queueUpdate, (np, color_mode)).start()
-    
-    #the tasks...
-    # update color scale
-    np.fillStrips(color_mode)
-    # adapt brightness
-    np.adaptBrightnessToLocalDaytime()
-    
-"""
-    utility method for separate thread that fades the brightness level in increasing velocity
-    from startLevel brightness to stopLevel brightness.
-    
-    Looking at the most distant values of startLevel = 1.0 and stopLevel = 0.0
-    and a initial waitTime of 10min + intermediate adaption time of 6 sec (decrease of 0.01 by intermediate step):
-        iteration duration (min)    10    5    2.5    1.25    0.625    0.3125    0.15625
-        brightness (after itera.)   1.0   0.5  0.25   0.125   0.0625   0.03125   0.015625
-        time interm. trans. (min)   5     2.5  1.25   0.625   0.3125   0.15625
-    
-    :param    startLevel: initial brightness value, value between 1.0 and 0.0
-    :type     startLevel: float
-    :param    stopLevel: destination brightness value, value between 1.0 and 0.0
-    :type     stopLevel: float
-    :param    waitTime: seconds to wait till next iteration
-    :type     waitTime: int
-    :param    newMainThread: defines whether this is a main iteration with decreasing step size and time or an intermediate iteration with constant time and step size
-                                if true, it will set up a next iteration of the main thread
-    :type     newMainThread: boolean
-    :param    delta: subtraction/addition value for brightness adaption, used in intermediate iterations
-    :type     delta: float
-"""
-def fadeBrightness(np, startLevel, stopLevel, waitTime, newMainThread, delta = 0):
-    intermediateStepSize = 0.01
-    
-    # define stop criteria
-    if abs(startLevel - stopLevel) < intermediateStepSize:
-        # stop main iteration
-        return
-    if startLevel > stopLevel and startLevel + delta < stopLevel:
-        # stop intermediate iteration
-        return
-    if startLevel < stopLevel and startLevel + delta > stopLevel:
-        # stop intermediate iteration
-        return
-    
-    # TODO test
-    print("{0} - current brightness: {1}".format(datetime.now().strftime("%A, %d. %B %Y %I:%M%p"), startLevel + delta))
-    # set current brightness
-    np.setBrightness(startLevel + delta)
-    
-    # start intermediate decrease with constant 0.01 step size every 6 seconds
-    if startLevel > stopLevel:
-        # fading out - set new lower boundary for intermediate iteration started by main iteration
-        Timer(6, 
-              fadeBrightness,
-              # parameter list
-              (np, 
-               startLevel,
-               stopLevel + ((startLevel - stopLevel) / 2) if newMainThread == True else stopLevel,
-               6,
-               False,
-               delta - intermediateStepSize)
-              ).start()
-        # for testing purpose without threading
-        #self.fadeBrightness(startLevel, stopLevel + ((startLevel - stopLevel) / 2) if newMainThread == True else stopLevel, 
-        #                    6, False, delta - intermediateStepSize)
-    elif startLevel < stopLevel:
-        # fading in - set new upper boundary for intermediate iteration started by main iteration
-        Timer(6, 
-              fadeBrightness,
-              # parameter list
-              (np, 
-               startLevel,
-               stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
-               6,
-               False,
-               delta + intermediateStepSize)
-              ).start()          
-        # for testing purpose without threading
-        #np.fadeBrightness(startLevel, stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
-        #                    6, False, delta + intermediateStepSize)
-    
-    # start new main iteration for adjustable iteration
-    if newMainThread == True:
-        if startLevel > stopLevel:
-            # fading out - decrease brightness by half the distance between current startLevel and stopLevel and cut time by half
-            Timer(waitTime, 
-                  fadeBrightness,
-                  # parameter list
-                  (np, 
-                   startLevel - ((startLevel - stopLevel) / 2),
-                   stopLevel,
-                   waitTime / 2,
-                   True)
-                  ).start()
-            # for testing purpose without threading
-            #np.fadeBrightness(startLevel - ((startLevel - stopLevel) / 2), stopLevel, waitTime / 2, True)
-        elif startLevel < stopLevel:
-            # fading in - decrease brightness by half the distance between current startLevel and stopLevel and cut time by half
-            Timer(waitTime, 
-                  fadeBrightness,
-                  # parameter list
-                  (np, 
-                   startLevel + ((stopLevel - startLevel) / 2),
-                   stopLevel,
-                   waitTime / 2,
-                   True)
-                  ).start()
-            # for testing purpose without threading
-            #np.fadeBrightness(startLevel + ((stopLevel - startLevel) / 2), stopLevel, waitTime / 2, True)
     
 
 ########################################
@@ -702,8 +574,7 @@ if __name__ == '__main__':
                        NeoPixelForecast.__updated__,
                        par = "extended")
     
-    np = NeoPixelForecast(config_file   = 'test/adafruit/forecast/config/FORECASTCONFIG.properties',
-                          color_schema  = ForecastNeoPixelColors)
+    np = NeoPixelForecast(color_schema  = ForecastNeoPixelColors)
     
     # start repetitive update
     queueUpdate(np, opts.mode)
