@@ -9,3 +9,4 @@ pyowm==2.10.0
 board==1.0
 flask==1.1.1
 flask_cors
+json5==0.9.4

@@ -30,7 +30,8 @@ from datetime import datetime
 
 
 
-activeThread = None
+activeMainThread = None
+activeFadingThread = None
 
 
 ########################################
@@ -45,15 +46,19 @@ activeThread = None
     :type     color_mode: str
 """      
 def queueUpdate(controller_instance, color_mode):
-    global activeThread
+    global activeMainThread
+    global activeFadingThread
     
     # to be safe... stop concurrent threads
-    if activeThread is not None:
-        activeThread.stop()
+    if activeMainThread is not None:
+        activeMainThread.cancel()
+    if activeFadingThread is not None:
+        activeFadingThread.cancel()
+        activeFadingThread = None
     
     # next run - update every half an hour
-    activeThread = Timer(controller_instance.UpdateFrequency, queueUpdate, (controller_instance, color_mode))
-    activeThread.start()
+    activeMainThread = Timer(controller_instance.UpdateFrequency, queueUpdate, (controller_instance, color_mode))
+    activeMainThread.start()
     
     #the tasks...
     # update color scale
@@ -71,20 +76,25 @@ def queueUpdate(controller_instance, color_mode):
         brightness (after itera.)   1.0   0.5  0.25   0.125   0.0625   0.03125   0.015625
         time interm. trans. (min)   5     2.5  1.25   0.625   0.3125   0.15625
     
+    :param    controller_instance: the instance of the controller class representing the active mode (weather forecast, share price, ...)
+    :type     controller_instance: class instance
     :param    startLevel: initial brightness value, value between 1.0 and 0.0
     :type     startLevel: float
     :param    stopLevel: destination brightness value, value between 1.0 and 0.0
     :type     stopLevel: float
-    :param    waitTime: seconds to wait till next iteration
-    :type     waitTime: int
+    :param    waitTimeMainThread: seconds to wait till next iteration of larger cycles
+    :type     waitTimeMainThread: int
     :param    newMainThread: defines whether this is a main iteration with decreasing step size and time or an intermediate iteration with constant time and step size
                                 if true, it will set up a next iteration of the main thread
     :type     newMainThread: boolean
     :param    delta: subtraction/addition value for brightness adaption, used in intermediate iterations
     :type     delta: float
+    :param    waitTimeSubThread: seconds to wait till next iteration of sub cycles
+    :type     waitTimeSubThread: int
 """
-def fadeBrightness(np, startLevel, stopLevel, waitTime, newMainThread, delta = 0):
+def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThread, newMainThread, delta = 0, waitTimeSubThread = 6):
     intermediateStepSize = 0.01
+    global activeFadingThread
     
     # define stop criteria
     if abs(startLevel - stopLevel) < intermediateStepSize:
@@ -100,65 +110,71 @@ def fadeBrightness(np, startLevel, stopLevel, waitTime, newMainThread, delta = 0
     # TODO test
     print("{0} - current brightness: {1}".format(datetime.now().strftime("%A, %d. %B %Y %I:%M%p"), startLevel + delta))
     # set current brightness
-    np.setBrightness(startLevel + delta)
+    controller_instance.setBrightness(startLevel + delta)
     
     # start intermediate decrease with constant 0.01 step size every 6 seconds
     if startLevel > stopLevel:
         # fading out - set new lower boundary for intermediate iteration started by main iteration
-        Timer(6, 
-              fadeBrightness,
-              # parameter list
-              (np, 
-               startLevel,
-               stopLevel + ((startLevel - stopLevel) / 2) if newMainThread == True else stopLevel,
-               6,
-               False,
-               delta - intermediateStepSize)
-              ).start()
+        activeFadingThread = Timer(waitTimeSubThread, 
+                              fadeBrightness,
+                              # parameter list
+                              (controller_instance, 
+                               startLevel,
+                               stopLevel + ((startLevel - stopLevel) / 2) if newMainThread == True else stopLevel,
+                               waitTimeSubThread,
+                               False,
+                               delta - intermediateStepSize,
+                               waitTimeSubThread)
+                              )
+        activeFadingThread.start()
         # for testing purpose without threading
         #self.fadeBrightness(startLevel, stopLevel + ((startLevel - stopLevel) / 2) if newMainThread == True else stopLevel, 
         #                    6, False, delta - intermediateStepSize)
     elif startLevel < stopLevel:
         # fading in - set new upper boundary for intermediate iteration started by main iteration
-        Timer(6, 
-              fadeBrightness,
-              # parameter list
-              (np, 
-               startLevel,
-               stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
-               6,
-               False,
-               delta + intermediateStepSize)
-              ).start()          
+        activeFadingThread = Timer(waitTimeSubThread, 
+                              fadeBrightness,
+                              # parameter list
+                              (controller_instance, 
+                               startLevel,
+                               stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
+                               waitTimeSubThread,
+                               False,
+                               delta + intermediateStepSize,
+                               waitTimeSubThread)
+                              )
+        activeFadingThread.start()          
         # for testing purpose without threading
-        #np.fadeBrightness(startLevel, stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
+        #controller_instance.fadeBrightness(startLevel, stopLevel - ((stopLevel - startLevel) / 2) if newMainThread == True else stopLevel,
         #                    6, False, delta + intermediateStepSize)
     
     # start new main iteration for adjustable iteration
     if newMainThread == True:
         if startLevel > stopLevel:
             # fading out - decrease brightness by half the distance between current startLevel and stopLevel and cut time by half
-            Timer(waitTime, 
-                  fadeBrightness,
-                  # parameter list
-                  (np, 
-                   startLevel - ((startLevel - stopLevel) / 2),
-                   stopLevel,
-                   waitTime / 2,
-                   True)
-                  ).start()
+            activeMainThread = Timer(waitTimeMainThread, 
+                                  fadeBrightness,
+                                  # parameter list
+                                  (controller_instance, 
+                                   startLevel - ((startLevel - stopLevel) / 2),
+                                   stopLevel,
+                                   waitTimeMainThread / 2,
+                                   True)
+                                  )
+            activeMainThread.start()
             # for testing purpose without threading
-            #np.fadeBrightness(startLevel - ((startLevel - stopLevel) / 2), stopLevel, waitTime / 2, True)
+            #controller_instance.fadeBrightness(startLevel - ((startLevel - stopLevel) / 2), stopLevel, waitTimeMainThread / 2, True)
         elif startLevel < stopLevel:
             # fading in - decrease brightness by half the distance between current startLevel and stopLevel and cut time by half
-            Timer(waitTime, 
-                  fadeBrightness,
-                  # parameter list
-                  (np, 
-                   startLevel + ((stopLevel - startLevel) / 2),
-                   stopLevel,
-                   waitTime / 2,
-                   True)
-                  ).start()
+            activeMainThread = Timer(waitTimeMainThread, 
+                                  fadeBrightness,
+                                  # parameter list
+                                  (controller_instance, 
+                                   startLevel + ((stopLevel - startLevel) / 2),
+                                   stopLevel,
+                                   waitTimeMainThread / 2,
+                                   True)
+                                  )
+            activeMainThread.start()
             # for testing purpose without threading
             #np.fadeBrightness(startLevel + ((stopLevel - startLevel) / 2), stopLevel, waitTime / 2, True)

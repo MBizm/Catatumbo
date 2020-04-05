@@ -1,7 +1,7 @@
 '''
 The Forecast module will represent the weather forecast in a range between today and +5 days (see mode attribute on command line for parametrization)
 as color values on the attached led strips. Status will be constantly updated every 30mins. See the color values for the weather conditions in
-Catatumbo/src/adafruit/core/forecast/forecast_colors.py.
+Catatumbo/src/catatumbo/core/forecast/forecast_colors.py.
 
 It requires a valid OpenWeatherMap key - free of charge for a limited amount of requests. See OWM website for more information: https://openweathermap.org/price.
 Static configuration can be done by FORECASTCONFIG.properties file. Otherwise values will be requested via command line.
@@ -34,16 +34,13 @@ limitations under the License.
 '''
 
 from pyowm import OWM
-from adafruit.core.neopixel_multibase import NeoPixelMultiBase
-from adafruit.core.util.cmd_functions import cmd_options
+from catatumbo.core.neopixel_multibase import NeoPixelMultiBase
+from catatumbo.core.util.cmd_functions import cmd_options
 from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
-from adafruit.core.util.utility import numberToBase, is_dst
-from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
-from astral import Location
-from datetime import datetime, timedelta
-import os
-from adafruit.core.util.configurations import Configurations
-from adafruit.core.util.update_thread import queueUpdate, fadeBrightness
+from catatumbo.core.util.utility import numberToBase, is_dst
+from catatumbo.controller.forecast.forecast_colors import ForecastNeoPixelColors
+from catatumbo.core.util.configurations import Configurations
+from catatumbo.core.util.update_thread import queueUpdate
 
 class NeoPixelForecast(NeoPixelMultiBase):
     
@@ -506,60 +503,6 @@ class NeoPixelForecast(NeoPixelMultiBase):
         print("weather condition: " + debug)
         
         return c
-
-    ########################################
-    #     BRIGHTNESS ADAPTION METHODS      #
-    ######################################## 
-    """
-        adapts the strpi brightness based on sunset/sunrise time for current location
-        TODO downport to base class
-    """
-    def adaptBrightnessToLocalDaytime(self):
-        
-        if self.AutoBrightnessMAX is not None and \
-            self.AutoBrightnessMIN is not None and \
-            self.localCity is not None and \
-            self.localCountry is not None and \
-            self.localLat is not None and \
-            self.localLon is not None:
-            # create Astral Location object for sunset/sunrise calculation
-            # https://astral.readthedocs.io/en/stable/index.html
-            astralLoc = Location((self.localCity,
-                                  self.localCountry,
-                                  self.localLat,
-                                  self.localLon,
-                                  # local timezone, see https://stackoverflow.com/questions/2720319/python-figure-out-local-timezone
-                                  '/'.join(os.path.realpath('/etc/localtime').split('/')[-2:]),
-                                  # well, anyone has a lucky number?
-                                  # based on https://www.quora.com/What-is-the-average-elevation-of-Earth-above-the-ocean-including-land-area-below-sea-level-What-is-the-atmospheric-pressure-at-that-elevation
-                                  #  "The average elevation of the land is 800m, covering 29% of the surface."
-                                  # and https://ngdc.noaa.gov/mgg/global/etopo1_surface_histogram.html
-                                  #  "average land height: 797m"
-                                  500))
-            
-            # ensure we are using the same timezone for all to compare
-            sunrise = astralLoc.sunrise()
-            sunset  = astralLoc.sunset()
-            now     = datetime.now(sunrise.tzinfo)
-            
-            print("now: {0}, sunrise: {1}, sunset: {2}".format(now, sunrise, sunset))
-
-            # check if night time
-            if now < sunrise or now > sunset:
-                # sleep mode in dark hours
-                self.setBrightness(self.AutoBrightnessMIN)
-            # assure the fading process for brightness increase is started after sunrise within the boundaries of the update cycle
-            elif now < sunrise + timedelta(seconds = self.UpdateFrequency):
-                # see method description for initial parametrization
-                fadeBrightness(np, self.AutoBrightnessMIN, self.AutoBrightnessMAX, 600, True)
-            # assure the fading process for brightness decrease is started before sunset within the boundaries of the update cycle
-            elif now > sunset - timedelta(seconds = self.UpdateFrequency):
-                fadeBrightness(np, self.AutoBrightnessMAX, self.AutoBrightnessMIN, 600, True)
-            else:
-                # daytime mode
-                self.setBrightness(self.AutoBrightnessMAX)            
-
-
     
 
 ########################################

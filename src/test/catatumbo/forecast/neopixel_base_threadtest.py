@@ -31,13 +31,13 @@ Potential color ranges are:
 @deffield    created: December 2019
 @deffield    updated: Updated
 '''
-from adafruit.core.neopixel_base import NeoPixelBase
-from adafruit.core.util.cmd_functions import cmd_options
+from catatumbo.core.neopixel_base import NeoPixelBase
+from catatumbo.core.util.cmd_functions import cmd_options
 import board
 import neopixel
 import time
 from threading import Thread
-from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
+from catatumbo.controller.forecast.forecast_colors import ForecastNeoPixelColors
 
 # defines the time in seconds that it will take to from an illuminated to faded state
 # calculation will be based on 190 individual steps for dimming from which 100 are twice the speed - step divider 280

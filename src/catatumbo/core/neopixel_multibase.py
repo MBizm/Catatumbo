@@ -13,15 +13,19 @@ TODO
 @deffield    created: December 2019
 @deffield    updated: Updated
 '''
-import board
 import neopixel
 import ipinfo
 
-from adafruit.core.util.utility import getExternalIPAddress
+from catatumbo.core.util.utility import getExternalIPAddress
 from ipinfo.exceptions import RequestQuotaExceededError
-from adafruit.core.neopixel_colors import NeoPixelColors
-from adafruit.core.neopixel_base import NeoPixelBase
-from adafruit.core.util.configurations import Configurations
+from catatumbo.core.neopixel_colors import NeoPixelColors
+from catatumbo.core.neopixel_base import NeoPixelBase
+from catatumbo.core.util.configurations import Configurations
+from astral import Location
+from datetime import datetime, timedelta
+import os
+from catatumbo.core.util.update_thread import fadeBrightness
+from adafruit_blinka.microcontroller.bcm283x import pin
 
 
 class NeoPixelMultiBase(NeoPixelBase):
@@ -43,10 +47,6 @@ class NeoPixelMultiBase(NeoPixelBase):
     localLon        = None
     localTimeZone   = None
     
-    
-    # brightness adaption range
-    AutoBrightnessMIN = None
-    AutoBrightnessMAX = None
     
     # time between updating the brightness of the strip, 1800 sec (30min)
     # may be also used for other purpose by derived classes, e.g. forecast frequency
@@ -132,10 +132,6 @@ class NeoPixelMultiBase(NeoPixelBase):
                 self.localTimeZone  = ipDetails.timezone
             except (RequestQuotaExceededError, AttributeError):
                 pass
-        
-        # check if range for brightness adaption is provided
-        self.AutoBrightnessMIN = config.getAutoBrightnessMin()
-        self.AutoBrightnessMAX = config.getAutoBrightnessMax()
     
     ########################################
     #            UTILITY METHODS           #
@@ -170,11 +166,17 @@ class NeoPixelMultiBase(NeoPixelBase):
         :returns: number of led strips
     """ 
     def countStrips(self):
-        return len(self.__stripList)     
+        return len(self.__stripList) 
 
     ########################################
     #        OVERRIDEN MEMBER METHODS      #
     ########################################
+    """
+        set the same brightness on all strip instances 
+        
+        :param    num: brightness of LED strips
+        :type     num: float
+    """
     def setBrightness(self, brightness):
         for i in range(self.countStrips()):
             strip = self.__getStrip(i)
@@ -183,7 +185,15 @@ class NeoPixelMultiBase(NeoPixelBase):
             strip.__class__ = NeoPixelBase
             
             strip.setBrightness(brightness)
-            
+        
+    """
+        returns the current brightness based on the actual value of the first strip
+        
+        :returns:    brightness
+        :type        float
+    """
+    def getBrightness(self):
+        return self.__getStrip(0).getBrightness()    
 
     """
         return the number of led pixels defined for the current instance
@@ -250,8 +260,58 @@ class NeoPixelMultiBase(NeoPixelBase):
             strip.show()
     
     
-    
-    
+    ########################################
+    #     BRIGHTNESS ADAPTION METHODS      #
+    ######################################## 
+    """
+        adapts the strip brightness based on sunset/sunrise time for current location
+    """
+    def adaptBrightnessToLocalDaytime(self):
+        
+        config = Configurations()
+        
+        if config.getAutoBrightnessMax() is not None and \
+            config.getAutoBrightnessMin() is not None and \
+            self.localCity is not None and \
+            self.localCountry is not None and \
+            self.localLat is not None and \
+            self.localLon is not None:
+            # create Astral Location object for sunset/sunrise calculation
+            # https://astral.readthedocs.io/en/stable/index.html
+            astralLoc = Location((self.localCity,
+                                  self.localCountry,
+                                  self.localLat,
+                                  self.localLon,
+                                  # local timezone, see https://stackoverflow.com/questions/2720319/python-figure-out-local-timezone
+                                  '/'.join(os.path.realpath('/etc/localtime').split('/')[-2:]),
+                                  # well, anyone has a lucky number?
+                                  # based on https://www.quora.com/What-is-the-average-elevation-of-Earth-above-the-ocean-including-land-area-below-sea-level-What-is-the-atmospheric-pressure-at-that-elevation
+                                  #  "The average elevation of the land is 800m, covering 29% of the surface."
+                                  # and https://ngdc.noaa.gov/mgg/global/etopo1_surface_histogram.html
+                                  #  "average land height: 797m"
+                                  500))
+            
+            # ensure we are using the same timezone for all to compare
+            sunrise = astralLoc.sunrise()
+            sunset  = astralLoc.sunset()
+            now     = datetime.now(sunrise.tzinfo)
+            
+            print("now: {0}, sunrise: {1}, sunset: {2}".format(now, sunrise, sunset))
+
+            # check if night time
+            if now < sunrise or now > sunset:
+                # sleep mode in dark hours
+                self.setBrightness(config.getAutoBrightnessMin())
+            # assure the fading process for brightness increase is started after sunrise within the boundaries of the update cycle
+            elif now < sunrise + timedelta(seconds = self.UpdateFrequency):
+                # see method description for initial parametrization
+                fadeBrightness(self, config.getAutoBrightnessMin(), config.getAutoBrightnessMax(), 600, True)
+            # assure the fading process for brightness decrease is started before sunset within the boundaries of the update cycle
+            elif now > sunset - timedelta(seconds = self.UpdateFrequency):
+                fadeBrightness(self, config.getAutoBrightnessMax(), config.getAutoBrightnessMin(), 600, True)
+            else:
+                # daytime mode
+                self.setBrightness(config.getAutoBrightnessMax())   
     
     
     
@@ -262,7 +322,7 @@ class NeoPixelMultiBase(NeoPixelBase):
     class __Config__(object):
         
         def __init__(self, 
-                     pixelpin       = board.D18, 
+                     pixelpin       = pin.D18, 
                      pixelnum       = 0, 
                      pixelorder     = neopixel.RGBW,
                      color_schema   = NeoPixelColors):

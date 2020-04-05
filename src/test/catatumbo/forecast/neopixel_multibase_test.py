@@ -1,8 +1,7 @@
-#!/usr/bin/env python
-# encoding: utf-8
 '''
-Test program for simple NeoPixelBase
-This will initiate the led strip based on the defined color schema taken from Forecast color set.
+Test program for NeoPixelMultiBase - with several physical strips representing the color values
+This will initiate the led strips based on the defined color values and categories taken from Forecast color set.
+The color set will be spread across the entire set of pixels available by the number of physical led strips.
 A color set represents all potential values within the forecast category, e.g for high temperature:
 temp high 
  + no clouds
@@ -11,7 +10,7 @@ temp high
  + slightly rainy
  + heavy rain
 
-Potential color ranges are:
+Potential color categories are:
     SCHEMA_ALLTEMPHIGH  = '1'
     SCHEMA_ALLTEMPMED   = '2'
     SCHEMA_ALLTEMPLOW   = '3'
@@ -28,15 +27,15 @@ Potential color ranges are:
 @deffield    created: December 2019
 @deffield    updated: Updated
 '''
-from adafruit.core.neopixel_base import NeoPixelBase
-from adafruit.core.util.cmd_functions import cmd_options
-from adafruit.controller.forecast.forecast_colors import ForecastNeoPixelColors
+from catatumbo.core.neopixel_multibase import NeoPixelMultiBase
+from catatumbo.core.util.cmd_functions import cmd_options
+from catatumbo.controller.forecast.forecast_colors import ForecastNeoPixelColors
 
-class NeoPixelForecastColorsTest(NeoPixelBase):
-
+class NeoPixelMultiStripsColorsTest(NeoPixelMultiBase):
+    
     __version__ = 0.1
     __updated__ = '2019-12-26'
-
+    
     """
         predefined schemas based on ForecastNeoPixelColors colorset
     """
@@ -46,7 +45,7 @@ class NeoPixelForecastColorsTest(NeoPixelBase):
     SCHEMA_ALLCLOUDY    = '4'
     SCHEMA_ALLRAINY     = '5'
 
-    def fillStrip(self, color_mode = 1):
+    def fillStrips(self, color_mode = 1):
 
         if color_mode == type(self).SCHEMA_ALLTEMPHIGH:                          #all varieties of high temperature
             sampleboard = (ForecastNeoPixelColors.W_HITMP,              #temp high 
@@ -91,24 +90,24 @@ class NeoPixelForecastColorsTest(NeoPixelBase):
         else:
             #stay with the default initialization
             return
-    
+        
         self.setPixelBySampleboard(sampleboard)
- 
-
+        
+        
 ########################################
 #                MAIN                  #
 ########################################
 if __name__ == '__main__':
-    # interpret cmd line arguments
-    opts = cmd_options(NeoPixelForecastColorsTest.__version__, 
-                       NeoPixelForecastColorsTest.__updated__,
-                       par = "extended")
+    # configuration for multi base example is available via config file
+    # only color mode can be selected via cmd line (how about brightness)
+    opts = cmd_options(NeoPixelMultiStripsColorsTest.__version__, 
+                       NeoPixelMultiStripsColorsTest.__updated__)
     
-    np = NeoPixelForecastColorsTest(pixelpin     = opts.port, 
-                                    pixelnum     = int(opts.len), 
-                                    pixelorder   = opts.schema, 
-                                    color_schema = ForecastNeoPixelColors,
-                                    brightness   = float(opts.bright))
-
-    np.fillStrip(opts.mode)
+    np = NeoPixelMultiStripsColorsTest(config_file   = 'test/catatumbo/forecast/config/MULTIBASECONFIG.properties',
+                                       color_schema  = ForecastNeoPixelColors)
+    
+    np.fillStrips(opts.mode)
+    
+    if opts.bright is not None:
+        np.setBrightness(opts.bright)
     

@@ -1,7 +1,7 @@
 '''
 The configurations class is a singleton for retrieving and setting all configuration values.
 It is used by the all controller/* as well as all core/* classes. Additionally, interceptor class uses it
-to directly perform changes before instructing running adafruit process to reload.
+to directly perform changes before instructing running catatumbo process to reload.
 
 Let yourself be dragged into the fascination of Catatumbo - Happy weather watching!
  
@@ -37,10 +37,17 @@ from os import path
 class Configurations(object):
     
     """
+    PUBLIC CONSTANTS
+    """
+    MAX_BRIGHTNESS = "maxBrightness"
+    CUR_BRIGHTNESS = "curBrightness"
+    MIN_BRIGHTNESS = "minBrightness"
+    
+    """
     STATIC CLASS ATTRIBUTES
     """
-    DEFAULT_CONFIG      = 'test/adafruit/forecast/config/FORECASTCONFIG.properties'
-    RUNTIME_CONFIG      = 'test/adafruit/forecast/config/RUNTIMECONFIG.properties'
+    DEFAULT_CONFIG      = 'test/catatumbo/forecast/config/FORECASTCONFIG.properties'
+    RUNTIME_CONFIG      = 'test/catatumbo/forecast/config/RUNTIMECONFIG.properties'
     
     """
     OBJECT ATTRIBUTES

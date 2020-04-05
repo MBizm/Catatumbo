@@ -14,9 +14,9 @@ TODO
 @deffield    updated: Updated
 '''
 
-import board
 import neopixel
-from adafruit.core.neopixel_colors import NeoPixelColors
+from catatumbo.core.neopixel_colors import NeoPixelColors
+from adafruit_blinka.microcontroller.bcm283x import pin
 
 class NeoPixelBase(object):
     
@@ -41,7 +41,7 @@ class NeoPixelBase(object):
         TODO
     """  
     def __init__(self, 
-                 pixelpin       = board.D18, 
+                 pixelpin       = pin.D18, 
                  pixelnum       = 0, 
                  pixelorder     = neopixel.RGBW,
                  color_schema   = NeoPixelColors,
@@ -69,7 +69,7 @@ class NeoPixelBase(object):
     ######################################## 
     """
         checks if pixelpin parameter was provided as instance or string (in case of command line configuration)
-        maps to PCM/PWM/SPI capable GPIOs - https://forums.adafruit.com/viewtopic.php?f=47&p=776283
+        maps to PCM/PWM/SPI capable GPIOs - https://forums.catatumbo.com/viewtopic.php?f=47&p=776283
         pins are now adapted to defined pins in adapted Adafrui_Blinka lib, see https://github.com/MBizm/Adafruit_Blinka/blob/master/src/adafruit_blinka/microcontroller/bcm283x/neopixel.py
         
         :param    pixelpin: pin defined either by neopixel attributes (board.D18, ...) or string
@@ -80,15 +80,15 @@ class NeoPixelBase(object):
         
         if isinstance(pixelpin, str):
             if(pixelpin == 'D12'):
-                pixelpin = board.D12
+                pixelpin = pin.D12
             elif(pixelpin == 'D13'):
-                pixelpin = board.D13
+                pixelpin = pin.D13
             elif(pixelpin == 'D18'):
-                pixelpin = board.D18
+                pixelpin = pin.D18
             elif(pixelpin == 'D19'):
-                pixelpin = board.D19
+                pixelpin = pin.D19
             elif(pixelpin == 'D21'):
-                pixelpin = board.D21
+                pixelpin = pin.D21
         
         return pixelpin
     
@@ -117,12 +117,24 @@ class NeoPixelBase(object):
     #            MEMBER METHODS            #
     ########################################
     """
-    TODO
+        set the brightness for the strip 
+        
+        :param    num: brightness of the LED strip
+        :type     num: float
     """
     def setBrightness(self, brightness):
         self.__strip.brightness = float(brightness)
         self.__strip.show()
         #print('brightness level: ' + str(brightness))
+        
+    """
+        returns the current brightness based on the actual value of the strip
+        
+        :returns:    brightness
+        :type        float
+    """
+    def getBrightness(self):
+        return self.__strip.brightness
 
     """
         return the numer of led pixels defined for the current instance

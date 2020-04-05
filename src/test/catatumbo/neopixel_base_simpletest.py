@@ -14,9 +14,9 @@ This script shows the simplest way to initialize an led strip, rendering the tri
 @deffield    created: December 2019
 @deffield    updated: Updated
 '''
-from adafruit.core.neopixel_base import NeoPixelBase
-from adafruit.core.util.cmd_functions import cmd_options
-from adafruit.core.neopixel_colors import NeoPixelColors
+from catatumbo.core.neopixel_base import NeoPixelBase
+from catatumbo.core.util.cmd_functions import cmd_options
+from catatumbo.core.neopixel_colors import NeoPixelColors
 
 ########################################
 #                MAIN                  #
