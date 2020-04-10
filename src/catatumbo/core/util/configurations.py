@@ -109,27 +109,18 @@ class Configurations(object):
     #
     #    technical LED strip configuration
     #
-            
-    def getBrightness(self):
-        b = self.getConfigProperty("GeneralConfiguration", "Brightness")
-        if b is not None:
-            b = float(b)
-        return b
-    
-    def setBrightness(self, brightness):
-        if isinstance(brightness, float):
-            self.setConfigProperty("GeneralConfiguration", "Brightness", str(brightness))
-        self.writeConfiguration()
-    
-    # TODO unite brightness value with AutoBrightnessMAX value - if only brightness is defined, the strip will be always the same brightness, if min value is defined in addition that value represents the lower boundary for automatic brightness fading
+   
     def getAutoBrightnessMax(self):
         bmax = self.getConfigProperty("GeneralConfiguration", "AutoBrightnessMAX")
         if bmax is not None:
             bmax = float(bmax)
+        else:
+            # default value - should never happen
+            bmax = 0.7
         return bmax
 
     def setAutoBrightnessMax(self, brightness):
-        if isinstance(brightness, float):
+        if float(brightness) >= 0 and float(brightness) <= 1.0:
             self.setConfigProperty("GeneralConfiguration", "AutoBrightnessMAX", str(brightness))
         self.writeConfiguration()
     
@@ -140,7 +131,11 @@ class Configurations(object):
         return bmin
     
     def setAutoBrightnessMin(self, brightness):
-        if isinstance(brightness, float):
+        if brightness is None:
+            # minBrightness may be None in case sunset/sunrise fading mode is turned on
+            # ensure to delete AutoBrightnessMIN from config
+            self.setConfigProperty("GeneralConfiguration", "AutoBrightnessMIN", None)
+        elif (float(brightness) >= 0 and float(brightness) <= 1.0):
             self.setConfigProperty("GeneralConfiguration", "AutoBrightnessMIN", str(brightness))
         self.writeConfiguration()
     
@@ -215,7 +210,10 @@ class Configurations(object):
     """
     def setConfigProperty(self, section, attribute, value):
         try:
-            self.__config_parser.set(section, attribute, value)
+            if value is not None:
+                self.__config_parser.set(section, attribute, value)
+            else:
+                self.__config_parser.remove_option(section, attribute)
         except (NoOptionError, NoSectionError):
             print('Error in setting configuration')
 

@@ -36,6 +36,9 @@ from catatumbo.core.util.update_thread import queueUpdate
 import catatumbo.core.interceptor.server.configuration_service
 
 import threading
+from catatumbo.core.util.configurations import Configurations
+from catatumbo.core.neopixel_colors import NeoPixelColors
+import neopixel
 
 class CatatumboStart():
     
@@ -81,7 +84,7 @@ class CatatumboStart():
     """    
     def __init__(self, opts = None):
         if opts is not None:
-            __options = opts
+            self.__options = opts
         
     
     ########################################
@@ -101,36 +104,9 @@ class CatatumboStart():
         if self.__forecastInstance is None:
             self.__forecastInstance = NeoPixelForecast(color_schema  = ForecastNeoPixelColors)
         
+        
         # start regular update of weather data and brightness adaption if configured
-        queueUpdate(self.__forecastInstance, opts.mode)
-        
-        if opts.bright is not None:
-            self.__forecastInstance.setBrightness(opts.bright)
-        
-        """
-        # TODO TEST
-        config = Configurations()
-        while True:
-            fadeBrightness(controller_instance = self.__forecastInstance, 
-                           startLevel = config.getAutoBrightnessMin(), 
-                           stopLevel = config.getAutoBrightnessMax(),
-                           waitTimeMainThread = 0.05,
-                           newMainThread = False,
-                           delta = 0.05, 
-                           waitTimeSubThread = 0.05)
-            
-            sleep(15)
-            
-            fadeBrightness(controller_instance = self.__forecastInstance, 
-                           startLevel = config.getAutoBrightnessMax(), 
-                           stopLevel = config.getAutoBrightnessMin(),
-                           waitTimeMainThread = 0.05,
-                           newMainThread = False,
-                           delta = 0.05, 
-                           waitTimeSubThread = 0.05)
-            
-            sleep(15)
-        """
+        queueUpdate(self.__forecastInstance, self.__options.mode)
             
     """
         TODO
@@ -206,15 +182,16 @@ if __name__ == '__main__':
     # configuration for multi base example is available via config file
     # only color mode can be selected via cmd line (how about brightness)
     # TODO adapt command line options for later multi mode selection
-    opts = cmd_options(CatatumboStart.__version__, 
-                       CatatumboStart.__updated__,
+    # TODO brightness from cmd_options
+    opts = cmd_options(catatumbo.starter.CatatumboStart.__version__, 
+                       catatumbo.starter.CatatumboStart.__updated__,
                        par = "extended")
     
     # start external configuration interceptor
     # use default configuration: listening externally and on port 8080
     threading.Thread(target =  catatumbo.core.interceptor.server.configuration_service.startServer).start()
-    
-    starter = CatatumboStart(opts)
-    
+
+    #event though we have a singleton, python differentiate between __main__.CatatumboStart and catatumbo.starter.CatatumboStart
+    ci = catatumbo.starter.CatatumboStart(opts)
     # TODO change standard mode
-    starter.setActiveMode(CatatumboStart.MODE_WEATHERFORECAST)
+    ci.setActiveMode(catatumbo.starter.CatatumboStart.MODE_WEATHERFORECAST)

@@ -15,6 +15,8 @@ TODO
 '''
 import neopixel
 import ipinfo
+import os
+import datetime
 
 from catatumbo.core.util.utility import getExternalIPAddress
 from ipinfo.exceptions import RequestQuotaExceededError
@@ -22,10 +24,9 @@ from catatumbo.core.neopixel_colors import NeoPixelColors
 from catatumbo.core.neopixel_base import NeoPixelBase
 from catatumbo.core.util.configurations import Configurations
 from astral import Location
-from datetime import datetime, timedelta
-import os
 from catatumbo.core.util.update_thread import fadeBrightness
 from adafruit_blinka.microcontroller.bcm283x import pin
+from datetime import timedelta
 
 
 class NeoPixelMultiBase(NeoPixelBase):
@@ -113,10 +114,6 @@ class NeoPixelMultiBase(NeoPixelBase):
             
             counter = counter + 1
         
-        # set brightness level for all strips
-        brightness = config.getBrightness()
-        self.setBrightness(0.3 if brightness is None else brightness)
-        
         # get current location for brightness adaption
         ipInfoKey = config.getIPInfoKey()
         if ipInfoKey is not None:            
@@ -132,6 +129,9 @@ class NeoPixelMultiBase(NeoPixelBase):
                 self.localTimeZone  = ipDetails.timezone
             except (RequestQuotaExceededError, AttributeError):
                 pass
+            
+        # set brightness of strip based on local sunset / sunrise
+        self.adaptBrightnessToLocalDaytime()
     
     ########################################
     #            UTILITY METHODS           #
@@ -270,12 +270,14 @@ class NeoPixelMultiBase(NeoPixelBase):
         
         config = Configurations()
         
+        # check whether sunrise/sunset can be defined by location    
         if config.getAutoBrightnessMax() is not None and \
             config.getAutoBrightnessMin() is not None and \
             self.localCity is not None and \
             self.localCountry is not None and \
             self.localLat is not None and \
             self.localLon is not None:
+            
             # create Astral Location object for sunset/sunrise calculation
             # https://astral.readthedocs.io/en/stable/index.html
             astralLoc = Location((self.localCity,
@@ -294,9 +296,9 @@ class NeoPixelMultiBase(NeoPixelBase):
             # ensure we are using the same timezone for all to compare
             sunrise = astralLoc.sunrise()
             sunset  = astralLoc.sunset()
-            now     = datetime.now(sunrise.tzinfo)
+            now     = datetime.datetime.now(sunrise.tzinfo)
             
-            print("now: {0}, sunrise: {1}, sunset: {2}".format(now, sunrise, sunset))
+            print("Daytime brightness adaption started - now: {0}, sunrise: {1}, sunset: {2}, current brightness: {3}".format(now, sunrise, sunset, self.getBrightness()))
 
             # check if night time
             if now < sunrise or now > sunset:
@@ -305,13 +307,31 @@ class NeoPixelMultiBase(NeoPixelBase):
             # assure the fading process for brightness increase is started after sunrise within the boundaries of the update cycle
             elif now < sunrise + timedelta(seconds = self.UpdateFrequency):
                 # see method description for initial parametrization
-                fadeBrightness(self, config.getAutoBrightnessMin(), config.getAutoBrightnessMax(), 600, True)
+                fadeBrightness(self, self.getBrightness(), config.getAutoBrightnessMax(), 600, True)
             # assure the fading process for brightness decrease is started before sunset within the boundaries of the update cycle
             elif now > sunset - timedelta(seconds = self.UpdateFrequency):
-                fadeBrightness(self, config.getAutoBrightnessMax(), config.getAutoBrightnessMin(), 600, True)
+                fadeBrightness(self, self.getBrightness(), config.getAutoBrightnessMin(), 600, True)
             else:
                 # daytime mode
-                self.setBrightness(config.getAutoBrightnessMax())   
+                self.setBrightness(config.getAutoBrightnessMax())
+        # use fixed times for fading brightness
+        # check whether sunrise/sunset fading generally is activated - depends on definition of minBrightness
+        elif config.getAutoBrightnessMin() is not None:
+            now = datetime.datetime.now().time()
+            
+            print("Daytime brightness adaption started - now: {0}, static, current brightness: {1}".format(now, self.getBrightness()))
+            
+            if now > datetime.time(21, 0, 0) or now < datetime.time(6, 0, 0):
+                # sleep mode in dark hours
+                self.setBrightness(config.getAutoBrightnessMin())
+            else:
+                # daytime mode
+                self.setBrightness(config.getAutoBrightnessMax())
+        else:
+            # ensure we have set the right brightness value, using maxBrightness
+            if config.getAutoBrightnessMax() != self.getBrightness():
+                self.setBrightness(config.getAutoBrightnessMax())                                        
+               
     
     
     

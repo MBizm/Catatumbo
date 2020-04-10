@@ -34,6 +34,8 @@ from flask_cors import cross_origin
 from catatumbo.core.util.configurations import Configurations
 import json5
 from catatumbo.starter import CatatumboStart
+from catatumbo.core.util.update_thread import fadeBrightness,\
+    stopConcurrentThreads
 
 server = Flask(__name__.split('.')[0])
 
@@ -52,46 +54,97 @@ def startServer(host = "0.0.0.0", port = 8080):
 #               SERVICES               #
 ########################################
 
-# allow CORS request from  browser, no IP restriction
-# browser will send OPTIONS header before sending CORS request
-@server.route('/catatumbo/config/test', methods=['GET', 'POST'])
-@cross_origin(origin='*', headers=['Content-Type'])
-def get_test():
-    config = Configurations()
-    ret = [{"id": 1, "text" : "Hello"},
-           {"id": 2, "text" : "World!"},
-           {"id": 3, "valueConfig" : config.getAutoBrightnessMax()},
-           {"id": 4, "valueFrontend" : request.args.get('value', default = -1, type = int)}]
-    config.writeConfiguration()
-    return json5.dumps(ret)
-
 @server.route('/catatumbo/config/adafruit/getBrightness', methods=['GET', 'POST'])
 @cross_origin(origin='*', headers=['Content-Type'])
 def getBrightness():
-    # gert starter instance for active mode information
+    # get starter and config instance for active mode and configuration information
     starter = CatatumboStart()
     config = Configurations()
-    
-    print(starter.getActivedInstance())
-    
+        
     bMin = config.getAutoBrightnessMin()
     bCur = starter.getActivedInstance().getBrightness()
     bMax = config.getAutoBrightnessMax()
     
-    # check whether static brightness or adaptive brightness is configured
-    if bMin is None or bMax is None:
-        # static brightness only value 'Brightness' is defined in configuration file
-        bMin = None
-        bMax = config.getBrightness()    
-    
-    ret = [{Configurations.MIN_BRIGHTNESS : bMin,
+    ret = {Configurations.MIN_BRIGHTNESS : bMin,
             Configurations.CUR_BRIGHTNESS : bCur,
-            Configurations.MAX_BRIGHTNESS : bMax}]
+            Configurations.MAX_BRIGHTNESS : bMax}
     
     return json5.dumps(ret, allow_nan = True)
 
+@server.route('/catatumbo/config/adafruit/setBrightness', methods=['POST'])
+@cross_origin(origin='*', headers=['Content-Type'])
+def setBrightness():
+    # get starter and config instance for active mode and configuration information
+    config = Configurations()
+    instance = CatatumboStart().getActivedInstance()
+    
+    # Cataumbo app sends two values, maxBrightness will be always defined
+    # minBrightness depends whether sunset fade mode is turned on
+    data = json5.loads(request.data)
+    bMin = data[Configurations.MIN_BRIGHTNESS]
+    bMax = data[Configurations.MAX_BRIGHTNESS]
+    
+    
+    if bMax is None:
+        bMax = 0.7
+    else:
+        bMax = int(bMax) / 100
+    
+    # minBrightness may be None if sunset fading mode is turned off
+    if bMin is not None:
+        bMin = int(bMin) / 100 
+        
+    # stop concurrent fading threads
+    stopConcurrentThreads()
+    
+    # temporarily indicate defined brightness value on led strip
+    if bMax != config.getAutoBrightnessMax():
+        # fade to defined max value
+        __fadeBrightness(instance, 
+                         bMax,
+                         bMin is not None)
+    elif bMin is not None and bMin != config.getAutoBrightnessMin():
+        # fade to defined min value
+        __fadeBrightness(instance, 
+                         bMin,
+                         bMin is not None)
+    elif bMin is None:
+        # no sunset/sunrise fading turned on
+        # fade to defined max value
+        __fadeBrightness(instance, 
+                         bMax,
+                         False)
+    
+    config.setAutoBrightnessMin(bMin)
+    config.setAutoBrightnessMax(bMax)
+    
+    return json5.dumps("OK", allow_nan = True)
+    
+    
+########################################
+#          UTILITY METHOD              #
+########################################
 
-
+"""
+    will fade from the current led brightness level to the changed value and then adapt fading level
+    based on sunset/sunrise fading mode at the very end if turned on
+    
+    :param    instance: the instance of the controller class representing the active mode (weather forecast, share price, ...)
+    :type     instance: class instance
+    :param    stopLevel: destination brightness value, value between 1.0 and 0.0
+    :type     stopLevel: float
+    :param    finalDayTimeAdaption: set final brightness dependent on current time and sunset/sunrise fading configuration 
+    :type     finalDayTimeAdaption: boolean
+"""
+def __fadeBrightness(instance, stop, finalDayTimeAdaption):
+    fadeBrightness(controller_instance = instance, 
+                   startLevel = instance.getBrightness(), 
+                   stopLevel = stop,
+                   waitTimeMainThread = 0.05,
+                   newMainThread = False,
+                   delta = 0.05, 
+                   waitTimeSubThread = 0.05,
+                   finalDayTimeAdaption = finalDayTimeAdaption)
 
 
 

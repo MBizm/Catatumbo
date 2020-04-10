@@ -26,7 +26,6 @@ limitations under the License.
 '''
 
 from threading import Timer
-from datetime import datetime
 
 
 
@@ -47,14 +46,9 @@ activeFadingThread = None
 """      
 def queueUpdate(controller_instance, color_mode):
     global activeMainThread
-    global activeFadingThread
     
-    # to be safe... stop concurrent threads
-    if activeMainThread is not None:
-        activeMainThread.cancel()
-    if activeFadingThread is not None:
-        activeFadingThread.cancel()
-        activeFadingThread = None
+    # stop concurrent fading threads
+    stopConcurrentThreads()
     
     # next run - update every half an hour
     activeMainThread = Timer(controller_instance.UpdateFrequency, queueUpdate, (controller_instance, color_mode))
@@ -65,6 +59,20 @@ def queueUpdate(controller_instance, color_mode):
     controller_instance.fillStrips(color_mode)
     # adapt brightness
     controller_instance.adaptBrightnessToLocalDaytime()
+    
+"""
+    will stop and reset threads that are already running
+"""
+def stopConcurrentThreads():
+    global activeMainThread
+    global activeFadingThread
+    
+    # to be safe... stop concurrent threads
+    if activeMainThread is not None:
+        activeMainThread.cancel()
+    if activeFadingThread is not None:
+        activeFadingThread.cancel()
+        activeFadingThread = None
     
 """
     utility method for separate thread that fades the brightness level in increasing velocity
@@ -91,8 +99,10 @@ def queueUpdate(controller_instance, color_mode):
     :type     delta: float
     :param    waitTimeSubThread: seconds to wait till next iteration of sub cycles
     :type     waitTimeSubThread: int
+    :param    finalDayTimeAdaption: special case - set final brightness dependent on current time and sunset/sunrise fading configuration 
+    :type     finalDayTimeAdaption: boolean
 """
-def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThread, newMainThread, delta = 0, waitTimeSubThread = 6):
+def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThread, newMainThread, delta = 0, waitTimeSubThread = 6, finalDayTimeAdaption = False):
     intermediateStepSize = 0.01
     global activeFadingThread
     
@@ -101,16 +111,29 @@ def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThrea
         # stop main iteration
         return
     if startLevel > stopLevel and startLevel + delta < stopLevel:
+        # assure we reach the final value
+        controller_instance.setBrightness(stopLevel)
+        
+        # check if brightness shall be faded based on local sunrise/sunset fading configuration
+        if finalDayTimeAdaption:
+            controller_instance.adaptBrightnessToLocalDaytime()
+        
         # stop intermediate iteration
         return
     if startLevel < stopLevel and startLevel + delta > stopLevel:
+        # assure we reach the final value
+        controller_instance.setBrightness(stopLevel)
+        
+        # check if brightness shall be faded based on local sunrise/sunset fading configuration
+        if finalDayTimeAdaption:
+            controller_instance.adaptBrightnessToLocalDaytime()
+        
         # stop intermediate iteration
         return
     
-    # TODO test
-    print("{0} - current brightness: {1}".format(datetime.now().strftime("%A, %d. %B %Y %I:%M%p"), startLevel + delta))
     # set current brightness
-    controller_instance.setBrightness(startLevel + delta)
+    controller_instance.setBrightness(round(startLevel + delta, 2))
+    #print("{0} - current brightness: {1}".format(datetime.now().strftime("%A, %d. %B %Y %I:%M%p"), round(startLevel + delta, 2)))
     
     # start intermediate decrease with constant 0.01 step size every 6 seconds
     if startLevel > stopLevel:
@@ -124,7 +147,8 @@ def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThrea
                                waitTimeSubThread,
                                False,
                                delta - intermediateStepSize,
-                               waitTimeSubThread)
+                               waitTimeSubThread,
+                               finalDayTimeAdaption)
                               )
         activeFadingThread.start()
         # for testing purpose without threading
@@ -141,7 +165,8 @@ def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThrea
                                waitTimeSubThread,
                                False,
                                delta + intermediateStepSize,
-                               waitTimeSubThread)
+                               waitTimeSubThread,
+                               finalDayTimeAdaption)
                               )
         activeFadingThread.start()          
         # for testing purpose without threading
@@ -159,7 +184,10 @@ def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThrea
                                    startLevel - ((startLevel - stopLevel) / 2),
                                    stopLevel,
                                    waitTimeMainThread / 2,
-                                   True)
+                                   True,
+                                   0,
+                                   waitTimeSubThread,
+                                   finalDayTimeAdaption)
                                   )
             activeMainThread.start()
             # for testing purpose without threading
@@ -173,7 +201,9 @@ def fadeBrightness(controller_instance, startLevel, stopLevel, waitTimeMainThrea
                                    startLevel + ((stopLevel - startLevel) / 2),
                                    stopLevel,
                                    waitTimeMainThread / 2,
-                                   True)
+                                   0,
+                                   waitTimeSubThread,
+                                   finalDayTimeAdaption)
                                   )
             activeMainThread.start()
             # for testing purpose without threading
