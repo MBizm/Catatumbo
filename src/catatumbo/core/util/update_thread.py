@@ -26,6 +26,7 @@ limitations under the License.
 '''
 
 from threading import Timer
+from datetime import datetime
 
 
 
@@ -67,9 +68,12 @@ def stopConcurrentThreads():
     global activeMainThread
     global activeFadingThread
     
+    print("#### " + str(datetime.now()) + " Stopping concurrent threads")
+    
     # to be safe... stop concurrent threads
-    if activeMainThread is not None:
-        activeMainThread.cancel()
+    # TODO only pause main thread if we suspend forecast mode
+    #if activeMainThread is not None:
+    #    activeMainThread.cancel()
     if activeFadingThread is not None:
         activeFadingThread.cancel()
         activeFadingThread = None

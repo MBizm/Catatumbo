@@ -36,6 +36,7 @@ import json5
 from catatumbo.starter import CatatumboStart
 from catatumbo.core.util.update_thread import fadeBrightness,\
     stopConcurrentThreads
+from catatumbo.controller.forecast.adafruit_forecast import NeoPixelForecast
 
 server = Flask(__name__.split('.')[0])
 
@@ -51,7 +52,7 @@ def startServer(host = "0.0.0.0", port = 8080):
     server.run(host, port)
 
 ########################################
-#               SERVICES               #
+#     LED CONFIGURATION SERVICES       #
 ########################################
 
 @server.route('/catatumbo/config/adafruit/getBrightness', methods=['GET', 'POST'])
@@ -99,16 +100,19 @@ def setBrightness():
     
     # temporarily indicate defined brightness value on led strip
     if bMax != config.getAutoBrightnessMax():
+        print("a")
         # fade to defined max value
         __fadeBrightness(instance, 
                          bMax,
                          bMin is not None)
     elif bMin is not None and bMin != config.getAutoBrightnessMin():
+        print("b")
         # fade to defined min value
         __fadeBrightness(instance, 
                          bMin,
                          bMin is not None)
     elif bMin is None:
+        print("c")
         # no sunset/sunrise fading turned on
         # fade to defined max value
         __fadeBrightness(instance, 
@@ -119,7 +123,23 @@ def setBrightness():
     config.setAutoBrightnessMax(bMax)
     
     return json5.dumps("OK", allow_nan = True)
+
+
+########################################
+#      FORECAST MODE SERVICES          #
+########################################  
+@server.route('/catatumbo/forecast/getConditions', methods=['GET', 'POST'])
+@cross_origin(origin='*', headers=['Content-Type'])  
+def getWeatherConditions():
+    # get current instance
+    instance = CatatumboStart().getActivedInstance()
+    ret = None
     
+    # check whether right mode is active
+    if issubclass(type(instance), NeoPixelForecast):
+        ret = instance.getCurrentWeatherCondition()
+    
+    return json5.dumps(ret, allow_nan = True)
     
 ########################################
 #          UTILITY METHOD              #

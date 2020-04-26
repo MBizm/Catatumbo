@@ -33,14 +33,17 @@ limitations under the License.
 @deffield    updated: Updated
 '''
 
-from pyowm import OWM
+from datetime import timedelta, datetime
+
+from catatumbo.controller.forecast.forecast_colors import ForecastNeoPixelColors
 from catatumbo.core.neopixel_multibase import NeoPixelMultiBase
 from catatumbo.core.util.cmd_functions import cmd_options
-from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
-from catatumbo.core.util.utility import numberToBase, is_dst
-from catatumbo.controller.forecast.forecast_colors import ForecastNeoPixelColors
 from catatumbo.core.util.configurations import Configurations
 from catatumbo.core.util.update_thread import queueUpdate
+from catatumbo.core.util.utility import numberToBase, is_dst
+from pyowm import OWM
+from pyowm.exceptions.api_call_error import APIInvalidSSLCertificateError
+
 
 class NeoPixelForecast(NeoPixelMultiBase):
     
@@ -60,6 +63,24 @@ class NeoPixelForecast(NeoPixelMultiBase):
     MODE_5DAYS_DAYTIME      = '7'
     MODE_5DAYS_ALL          = '8'
     
+    # WEATHER CONDITION CODE
+    # each weather condition based on rain, cloud coverage and temperature is mapped into discrete number of condition states
+    #  that are indicated by different colors on the LED strip 
+    # storm: digit 6, big endian
+    CONDITION_STORM = 0x40
+    # snow: digit 5, big endian
+    CONDITION_SNOW = 0x20
+    # temperature: digit 4-3, big endian
+    CONDITION_LTMP = 0x08
+    CONDITION_MTMP = 0x10
+    CONDITION_HTMP = 0x18
+    # rain/cloud: digit 2-0, big endian
+    CONDITION_CLEAR = 0x01
+    CONDITION_SLCLO = 0x02
+    CONDITION_CLO   = 0x03
+    CONDITION_SLRAI = 0x04
+    CONDITION_RAI   = 0x05 
+    
     """
     OBJECT ATTRIBUTES
     """
@@ -75,6 +96,10 @@ class NeoPixelForecast(NeoPixelMultiBase):
     winterConf = False
     # winterMode is the mode dependent on the time of the year
     winterMode = False
+    
+    # sampleboard storing currently displayed weather conditions
+    # a dictionary consisting of {<id> : {"timestamp", "color", "CATAcode", "OWMcode", "temp", "cloud", "rain", "debug"}, ...}
+    __sampleboard = None
 
     """
         TODO adapt config to Forecast requirement
@@ -186,11 +211,17 @@ class NeoPixelForecast(NeoPixelMultiBase):
     """
         fills weather forecast data based on defined mode
         
+        OWM weather API reference:
+        https://github.com/csparpa/pyowm/blob/a5d8733412168516f869c84600812e0046c209f9/sphinx/usage-examples-v2/weather-api-usage-examples.md
+        
         :param    color_mode: forecast period to be display, 
                     see MODE_TODAY, MODE_TOMORROW_DAYTIME, MODE_ALL, ...
         :type     color_mode: str
     """
     def fillStrips(self, color_mode = '2'):
+        
+        print("#### " + str(datetime.now()) + " Updating weather information")
+        
         #request forecast
         #https://pyowm.readthedocs.io/en/latest/usage-examples-v2/weather-api-usage-examples.html#getting-weather-forecasts
         try:
@@ -205,8 +236,8 @@ class NeoPixelForecast(NeoPixelMultiBase):
             # stop processing here
             return
 
-        # create sampleboard for relevant color slots
-        sampleboard = ()
+        # create sampleboard dictionary for current weather condition
+        sampleboard = {}
         # calculate offset for current days, forecast is provided in 3 hour blocks
         # TODO this requires adaption to timezone of defined location, current implementation considers local timezone!
         offset = int(forecast.when_starts('date').hour / 3)
@@ -249,30 +280,43 @@ class NeoPixelForecast(NeoPixelMultiBase):
             self.winterMode = not(is_dst(timezone=self.localTimeZone))
         
         
+        # track current date & time of forecast
+        cdate = forecast.when_starts('date')
+        index = 0
+        
         # iterate through weather forecast blocks
-        # forecast is provided for 5 days in 8 blocks per day
-        # TODO check offset and max counter values
         for weather in forecast.get_forecast():
 
             # check whether current position marker matches with flagged timeslots
             if (mask & pos) > 0:
                 # get 3-byte or 4-byte color representation based on weather condition
-                # TODO check for storm attribute
-                sampleboard = sampleboard + (self.mapWeatherToRGB(weather.get_temperature(unit='celsius')['temp'],
-                                                                   weather.get_clouds(),
-                                                                   0 if len(weather.get_rain()) == 0 else list(weather.get_rain().values())[0],
-                                                                   False,
-                                                                   len(weather.get_snow()) > 0), )
-                #print("Added entry at: {0} - {1}".format(str(numberToBase((mask & pos), 2)), sampleboard))
+                sampleboard.update({index : self.mapWeatherConditions(weather.get_temperature(unit='celsius')['temp'],
+                                                                       weather.get_clouds(),
+                                                                       0 if len(weather.get_rain()) == 0 else list(weather.get_rain().values())[0],
+                                                                       cdate,
+                                                                       weather.get_weather_code(),
+                                                                       len(weather.get_snow()) > 0,
+                                                                       weather.get_wind()['speed'],
+                                                                       weather.get_humidity(),
+                                                                       weather.get_pressure()['press']
+                                                                       )})
+                # count the number of entries for index of dictionary - dictionary is not in chronological order
+                index = index + 1
             
             # switch to next forecast block
             pos = pos << 1
+            cdate = cdate + timedelta(hours=3)
         
         # prepare mask for day turn analysis by shifting by the offset
         mask = (mask >> offset) & 0xFFFFFFFFFF
         
-        # print weather forecast
+        # display weather forecast on LED strip
         self.setPixelBySampleboard(sampleboard, mask)
+        
+        # store currently displayed weather condition for external status requests
+        self.__sampleboard = sampleboard
+        
+        
         
     """
         fills the strips according to a list of color values
@@ -283,8 +327,9 @@ class NeoPixelForecast(NeoPixelMultiBase):
         the logic for the blocks resulted from the forecast functionality, in which only certain periods of the day were taken over into sampleboard.
         
         TODO the implementation of divider needs refactoring, simplifying coding and also considering cases where full day is considered in bit mask but still there should be a day divider being shown
+        TODO implement blinking indication for storm and extreme weather situations
         
-        :param    sampleboard: list of color values defining the section, the section size depends on the number of pixels available in total
+        :param    sampleboard: TODO UPDATE DESCRIPTION BASED ON CHANGED STRUCTURE list of color values defining the section, the section size depends on the number of pixels available in total
         :type     sampleboard: list
         :param    mask: a binary list, indicating each sampleboard entry by a binary 1 and each block being separated by a binary 0 in between.
         :type     mask: long int
@@ -352,7 +397,8 @@ class NeoPixelForecast(NeoPixelMultiBase):
         for pixelindex in range(self.getNumPixels()-1):
             # fill up remaining pixels
             if(int(pixelindex / sectionsize) >= len(sampleboard)):
-                self.setPixel(pixelindex, sampleboard[len(sampleboard) - 1]) 
+                # get color value from sampleboard - 1. step: get the right index, 2. step get color value
+                self.setPixel(pixelindex, sampleboard[len(sampleboard) - 1]['color']) 
             # preset pixel colors according to color space set  
             else:
                 # sums up the length of the individual blocks
@@ -377,7 +423,8 @@ class NeoPixelForecast(NeoPixelMultiBase):
                     self.setPixel(pixelindex, ForecastNeoPixelColors.W_BLACK)
                     #print('[' + str(pixelindex) + '] <DIVIDER>')
                 else:
-                    self.setPixel(pixelindex, sampleboard[int(pixelindex / sectionsize)])
+                    # get color value from sampleboard - 1. step: get the right index, 2. step get color value
+                    self.setPixel(pixelindex, sampleboard[int(pixelindex / sectionsize)]['color'])
                     #print('[' + str(pixelindex) + '] ' + str(sampleboard[int(pixelindex / sectionsize)]))
                     
         
@@ -385,124 +432,204 @@ class NeoPixelForecast(NeoPixelMultiBase):
         self.show()
     
     """
-        adapting the scales for the different vectors based on DWD terminology
+        maps weather conditions (temperature, rain and cloud) to color values
+        For each temperature scale (low, medium, high) values for rain (prioritized over cloud) and cloudiness will be indicated
         
         see \docs\forecast\ColorScale.png for more information
 
-        :param    storm: storm indication
-        :type     storm: boolean
-        :param    snow: snow fall
-        :type     snow: boolean
-        :param    temp: temperature
+        :param    temp: temperature in Celsius
         :type     temp: float
         :param    cloud: percentage of cloud coverage
         :type     cloud: float
-        :param    rain: amount of rain on l/sqm
+        :param    rain: amount of rain on mm/sqm
         :type     rain: float
-        :returns: mapped color for weather condition
+        :param    timestamp: timestampf for the current weather forecast
+        :type     timestamp: datetime object
+        :param    OWMcode: OWM weather code - storm is not exposed via API and allows finer segregation of weather state
+        :type     OWMcode: integer
+        :param    snow: snow fall
+        :type     snow: boolean
+        :param    wind: wind speed m/s
+        :type     wind: float
+        :param    humidity: humidity in percentage
+        :type     humidity: integer
+        :param    pressure: athmosperic pressure in hPa
+        :type     pressure: float
+        :returns: a dictionary consisting of {"timestamp", "color", "CATAcode", "OWMcode", "temp", "cloud", "rain", "debug"}
     """
-    def mapWeatherToRGB(self,  
-                        temp, 
-                        cloud, 
-                        rain,
-                        storm = False, 
-                        snow = False):
-        
+    def mapWeatherConditions(self,  
+                                temp, 
+                                cloud, 
+                                rain,
+                                timestamp,
+                                OWMcode, 
+                                snow,
+                                wind,
+                                humidity,
+                                pressure):
+               
+        # color value
         c = None
+        # code describing weather condition as hex value
+        code = None
         debug = None
         
-        # highest prio - any storm indication
-        if storm:
+        # highest prio - any storm or extreme weather indication
+        # storm is not directly exposed via OWM API
+        # see OWM API: https://github.com/csparpa/pyowm/blob/a5d8733412168516f869c84600812e0046c209f9/pyowm/weatherapi25/weather.py
+        # see OWM code description - official page missing description for >= 900
+        # official description: https://openweathermap.org/weather-conditions
+        # additional helpful documentation: https://godoc.org/github.com/briandowns/openweathermap
+        #     202: thunderstorm with heavy rain, 212: heavy thunderstorm
+        #     503: very heavy rain, 504: extreme rain
+        #     711: smoke, 762: volcanic ash, 781: tornado
+        #     900: tornado, 901: tropical storm, 902: hurricane, 906: hail
+        #     958: gale, 959: severe gale, 960: storm, 961: violent storm, 962: hurricane
+        if OWMcode == 202 or \
+            OWMcode == 212 or \
+            OWMcode == 503 or \
+            OWMcode == 504 or \
+            OWMcode == 711 or \
+            OWMcode == 762 or \
+            OWMcode == 781 or \
+            OWMcode == 900 or \
+            OWMcode == 901 or \
+            OWMcode == 902 or \
+            OWMcode == 906 or \
+            OWMcode == 958 or \
+            OWMcode == 959 or \
+            OWMcode == 960 or \
+            OWMcode == 961 or \
+            OWMcode == 962:
             c = ForecastNeoPixelColors.W_STORM
+            code = type(self).CONDITION_STORM
             debug = "storm"
-        # second prio - snow fall indication
-        elif snow:
+        # second prio - snow fall or dangerous freezing rain indication
+        # see https://godoc.org/github.com/briandowns/openweathermap
+        #     511: freezing rain
+        elif snow or \
+            OWMcode == 511:
             c = ForecastNeoPixelColors.W_SNOW
+            code = type(self).CONDITION_SNOW
             debug = "snow"
         # segregation by color range
-        # TODO differentiation based on summer/winter period??
         # low temp
         elif ( (not(self.winterMode) and temp <= 10) or (self.winterMode and temp <= 0) ) :
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
                 c = ForecastNeoPixelColors.W_LOWTMP_RAINY
-                debug = "low temp, rainy"
+                code = type(self).CONDITION_LTMP | type(self).CONDITION_RAI
+                debug = "low temp [{0} C], rainy [{1}mm/qm]".format(temp, rain)
             # slightly rainy
             elif rain > 0.3:
                 c = ForecastNeoPixelColors.W_LOWTMP_SLRAINY
-                debug = "low temp, slightly rainy"
+                code = type(self).CONDITION_LTMP | type(self).CONDITION_SLRAI
+                debug = "low temp [{0} C], slightly rainy [{1}mm/qm]".format(temp, rain)
             # no rain
             else:
                 # second prio - cloud coverage
                 # cloudy
                 if cloud > (100 * 3/8):
                     c = ForecastNeoPixelColors.W_LOWTMP_CLOUDY
-                    debug = "low temp, cloudy"
+                    code = type(self).CONDITION_LTMP | type(self).CONDITION_CLO
+                    debug = "low temp [{0} C], cloudy [{1}%]".format(temp, cloud)
                 # slightly cloudy
                 elif cloud > (100 * 1/8):
                     c = ForecastNeoPixelColors.W_LOWTMP_SLCLOUDY
-                    debug = "low temp, slightly cloudy"
+                    code = type(self).CONDITION_LTMP | type(self).CONDITION_SLCLO
+                    debug = "low temp [{0} C], slightly cloudy [{1}%]".format(temp, cloud)
                 # no clouds
                 else:
                     c = ForecastNeoPixelColors.W_LOWTMP
-                    debug = "low temp"
+                    code = type(self).CONDITION_LTMP | type(self).CONDITION_CLEAR
+                    debug = "low temp [{0} C]".format(temp)
         # mid temp
         elif (not(self.winterMode) and temp <= 25) or (self.winterMode and temp <= 10):
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
                 c = ForecastNeoPixelColors.W_MIDTMP_RAINY
-                debug = "mid temp, rainy"
+                code = type(self).CONDITION_MTMP | type(self).CONDITION_RAI
+                debug = "mid temp [{0} C], rainy [{1}mm/qm]".format(temp, rain)
             # slightly rainy
             elif rain > 0.3:
                 c = ForecastNeoPixelColors.W_MIDTMP_SLRAINY
-                debug = "mid temp, slightly rainy"
+                code = type(self).CONDITION_MTMP | type(self).CONDITION_SLRAI
+                debug = "mid temp [{0} C], slightly rainy [{1}mm/qm]".format(temp, rain)
             # no rain
             else:
                 # second prio - cloud coverage
                 # cloudy
                 if cloud > (100 * 3/8):
                     c = ForecastNeoPixelColors.W_MIDTMP_CLOUDY
-                    debug = "mid temp, cloudy"
+                    code = type(self).CONDITION_MTMP | type(self).CONDITION_CLO
+                    debug = "mid temp [{0} C], cloudy [{1}%]".format(temp, cloud)
                 # slightly cloudy
                 elif cloud > (100 * 1/8):
                     c = ForecastNeoPixelColors.W_MIDTMP_SLCLOUDY
-                    debug = "mid temp, slightly cloudy"
+                    code = type(self).CONDITION_MTMP | type(self).CONDITION_SLCLO
+                    debug = "mid temp [{0} C], slightly cloudy [{1}%]".format(temp, cloud)
                 # no clouds
                 else:
                     c = ForecastNeoPixelColors.W_MIDTMP
-                    debug = "mid temp"
+                    code = type(self).CONDITION_MTMP | type(self).CONDITION_CLEAR
+                    debug = "mid temp [{0} C]".format(temp)
         # high temp
         elif (not(self.winterMode) and temp > 25) or (self.winterMode and temp > 10):
             # highest prio - rain fall indication
             # rainy
             if rain > 2.5:
                 c = ForecastNeoPixelColors.W_HITMP_RAINY
-                debug = "high temp, rainy"
+                code = type(self).CONDITION_HTMP | type(self).CONDITION_RAI
+                debug = "high temp [{0} C], rainy [{1}mm/qm]".format(temp, rain)
             # slightly rainy
             elif rain > 0.3:
                 c = ForecastNeoPixelColors.W_HITMP_SLRAINY
-                debug = "high temp, slightly rainy"
+                code = type(self).CONDITION_HTMP | type(self).CONDITION_SLRAI
+                debug = "high temp [{0} C], rainy [{1}mm/qm]".format(temp, rain)
             # no rain
             else:
                 # second prio - cloud coverage
                 # cloudy
                 if cloud > (100 * 3/8):
                     c = ForecastNeoPixelColors.W_HITMP_CLOUDY
-                    debug = "high temp, cloudy"
+                    code = type(self).CONDITION_HTMP | type(self).CONDITION_CLO
+                    debug = "high temp [{0} C], cloudy [{1}%]".format(temp, cloud)
                 # slightly cloudy
                 elif cloud > (100 * 1/8):
                     c = ForecastNeoPixelColors.W_HITMP_SLCLOUDY
-                    debug = "high temp, slightly cloudy"
+                    code = type(self).CONDITION_HTMP | type(self).CONDITION_SLCLO
+                    debug = "high temp [{0} C], slightly cloudy [{1}%]".format(temp, cloud)
                 # no clouds
                 else:
                     c = ForecastNeoPixelColors.W_HITMP
-                    debug = "high temp"
+                    code = type(self).CONDITION_HTMP | type(self).CONDITION_CLEAR
+                    debug = "high temp [{0} C]".format(temp)
                     
         print("weather condition: " + debug)
         
-        return c
+        return {"timestamp" : timestamp.ctime(),
+                "color"     : c,
+                "CATAcode"  : code,
+                "OWMcode"   : OWMcode,
+                "temp"      : temp,
+                "cloud"     : cloud,
+                "rain"      : rain,
+                "wind"      : wind,
+                "humidity"  : humidity,
+                "pressure"  : pressure,
+                "debug"     : debug}
+
+    ########################################
+    #        GETTER/SETTER METHODS         #
+    ######################################## 
+    """
+        returns currently displayed weather condition
+        :returns:    dictionary consisting of {<id> : {"timestamp", "color", "CATAcode", "OWMcode", "temp", "cloud", "rain", "debug"}, ...}
+    """
+    def getCurrentWeatherCondition(self):
+        return self.__sampleboard
     
 
 ########################################
