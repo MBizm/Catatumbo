@@ -47,19 +47,19 @@ Catatumbo comes with a set of controller, utility classes, a JSON server instanc
 
 ## Packages
 These are the most important packages of Catatumbo lib:
-* ./catatumbo - main package for all catatumbo server files
-* ./catatumbo/controller - contains the controller classes that represent the different modes, e.g. weather forecast
-* ./core - contains LED abstraction classes as well as additional utility and JSON server files required for running Catatumbo server
-* ./core/interceptor - contains simple JSON server that exposes services on port 8080
-* ./test - currently combines a number of test files as well as Catatumbo server configuration
-* ./test/catatumbo/forecast/config - currently contains the configuration file for initial start up required for running Catatumbo server (FORECASTCONFIG.properties). At runtime an additional file will be created that represents the changed configuration (RUNTIMECONFIG.properties) that if present will be prioritized. Location of configuration files may change in later versions of Catatumbo.
+* *./catatumbo* - main package for all catatumbo server files
+* *./catatumbo/controller* - contains the controller classes that represent the different modes, e.g. weather forecast
+* *./core* - contains LED abstraction classes as well as additional utility and JSON server files required for running Catatumbo server
+* *./core/interceptor* - contains simple JSON server that exposes services on port 8080
+* *./test* - currently combines a number of test files as well as Catatumbo server configuration
+* *./test/catatumbo/forecast/config* - currently contains the configuration file for initial start up required for running Catatumbo server (FORECASTCONFIG.properties). At runtime an additional file will be created that represents the changed configuration (RUNTIMECONFIG.properties) that if present will be prioritized. Location of configuration files may change in later versions of Catatumbo.
 
 ## Classes
 These are the most important classes of Catatumbo lib:
-* ./catatumbo/starter.py - central startup class that starts the predefined mode. It will initialize the controller for setting up the LED strip and start the JSON server to allow interaction via the [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp).
-* ./catatumbo/core/neopixel_multibase.py - the main abstraction class for derived controllers. All controller should derive from this class. It already comes with support for multiple LED strip initialization (installation of custom [Adafruit Blinka Lib](https://github.com/MBizm/Adafruit_Blinka) currently is required), automatic determination of the location based on the IP, automatic daytime/nighttime adaption for fading the brightness at nighttime
-* ./catatumbo/controller/forecast/adafruit_forecast.py - the controller for starting the weather forecast. It will retrieve weather information for your current location via OWM API. It is currently started by default by starter.py script.
-* ./catatumbo/core/interceptor/server/configuration_server.py - simple JSON server that exposes several REST services via port 8080 and will be called by [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp).
+* *./catatumbo/starter.py* - central startup class that starts the predefined mode. It will initialize the controller for setting up the LED strip and start the JSON server to allow interaction via the [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp).
+* *./catatumbo/core/neopixel_multibase.py* - the main abstraction class for derived controllers. All controller should derive from this class. It already comes with support for multiple LED strip initialization (installation of custom [Adafruit Blinka Lib](https://github.com/MBizm/Adafruit_Blinka) currently is required), automatic determination of the location based on the IP, automatic daytime/nighttime adaption for fading the brightness at nighttime
+* *./catatumbo/controller/forecast/adafruit_forecast.py* - the controller for starting the weather forecast. It will retrieve weather information for your current location via OWM API. It is currently started by default by starter.py script.
+* *./catatumbo/core/interceptor/server/configuration_server.py* - simple JSON server that exposes several REST services via port 8080 and will be called by [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp).
 
 ## Custom Controller Guide
 By deriving your custom controller from neopixel_multibase.py class, building a custom controller is easy and comes already with functionality like support for multiple LED strips and daytime/nighttime brightness adaption.
