@@ -39,8 +39,9 @@ For running Catatumbo light strip your require:
 * An LED strip, Adafruit LED strips or similar 5050-sized LED strips
 * Depending on the length and required power you may need additional power supply for the LED strip
 
-## Fritzen circuit diagram
-TODO
+## Fritzing circuit diagram
+Setting up the component for your Catatumbo LED strip is easy. Depending on the length of your LED strip, power supply from Raspberry may be sufficient (usually Raspberry can supply 1m with 30 LEDs).
+![Raspberry circuit diagram for LED strip with power supply](https://github.com/MBizm/Catatumbo/blob/master/docs/core/circuit-diagram-RaspiAdafruitLED.jpg)
 
 # Developer Quick Guide
 Catatumbo comes with a set of controller, utility classes, a JSON server instance and configuration files. Controller define the mode of the led strip by translating corresponding real-world information in color representations on the LED strip. Utility classes abstract the lower level LED strip implementation. The JSON server is the gateway for [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp) to interact with the Catatumbo server. The configuration files contain LED configuration (like numer of LEDs and Raspberry pin), service account information (like IPInfo and OWM account information) and dynamic configuration (like LED brightness and daytime/nighttime mode).
