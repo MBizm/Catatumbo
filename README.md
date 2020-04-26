@@ -8,7 +8,7 @@ Let yourself be dragged into the fascination of Catatumbo - Happy weather watchi
 ## Weather Forecast
 Visualizes the weather forecast based on OpenWeatherMap data.
 
-![Color representation of different weather conditions for Catatumbo LED strip](https://github.com/MBizm/Catatumbo/blob/master/docs/forecast/color_chart.jpg)
+![Color representation of different weather conditions for Catatumbo LED strip](https://github.com/MBizm/Catatumbo/blob/master/docs/forecast/color_chart-stairs.jpg)
 
 Want to have a permanent overview of the weather condition in the next days? Don't like to be surprised by sudden rain or snow fall?
 The forecast module represents the weather forecast as color code on your led strip. Select between a range of today up until in 5 days, shown as 3 hours blocks. It divides into warm, medium and cold temperatures. For each of the temperature ranges, it will deviate the color to indicate the presence of clouds, rain and snow.
