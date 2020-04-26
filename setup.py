@@ -22,6 +22,6 @@ setup(
         'board==1.0',
     ],
     py_modules=[
-        '"adafruit.controller.forecast.adafruit_forecast"',
+        '"catatumbo.controller.forecast.adafruit_forecast"',
     ],
 )

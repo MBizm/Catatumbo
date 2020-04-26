@@ -37,7 +37,7 @@ RECT_W = 20
 RECT_H = 20
 
 """
-    reads defined values from property file - test/adafruit/forecast/config/FORECASTCONFIG.properties'
+    reads defined values from property file - test/catatumbo/forecast/config/FORECASTCONFIG.properties'
     property file consists of two sections:
         - [OWMData]:APIKeyDomain, APIKeyName(optional), APIKey
         - [ApplicationData]:CityID, CityName, Country
@@ -50,7 +50,7 @@ RECT_H = 20
 """
 def getProperty(p_section, p_attribute):
     config = configparser.RawConfigParser()
-    config.read('../../../test/adafruit/forecast/config/FORECASTCONFIG.properties')
+    config.read('../../../test/catatumbo/forecast/config/FORECASTCONFIG.properties')
         
     try:
         ret = config.get(p_section, p_attribute)
