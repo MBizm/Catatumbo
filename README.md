@@ -1,13 +1,69 @@
 # Catatumbo
-Catatumbo is an Adaptive Smart Home Lightning project that lets your home indicate information of relevance for you. It aims to build up light components (led strips) that are distributed across the appartement. Each device being addressed via network or KNX in the future. While each device can foresee a different scene, in special cases they can also act together - e.g. for indicating an alarm situation in the whole appartment. Special focus is on adaptive lightning scenes which indicate real world information via color codes - e.g. stock prices, weather forecasts, social media states. Say you want to your led strip to show how your favorite share price correlates to how the the leading index is performing or just by having your hall stand illuminated in bright blue may indicate that you better take the umbrella along.
+Catatumbo is an Adaptive Smart Home Lightning project that lets your home indicate information of relevance for you. It shows real world information like stock-market price mode or weather forecast mode via color representation. While each device can foresee a different mode, in special cases they can also act together - e.g. for indicating an alarm situation in the whole appartment.
 
 The project is named after the famous weather spectacle 'Faros del Catatumbo', showing up as silent thunderstorms over the marshlands of Catatumbo river in Venezuela.
 Let yourself be dragged into the fascination of Catatumbo - Happy weather watching!
 
-# Benefits
-Using the Catatumbo library brings you the following benefits:
-## Simplicity
-The Catatumbo lib let's you program your led strip in the easiest way. Getting the French tricolore filling up your strip is a matter of a few lines:
+# Available Modes
+## Weather Forecast
+Visualizes the weather forecast based on OpenWeatherMap data.
+
+![Color representation of different weather conditions for Catatumbo LED strip](https://github.com/MBizm/Catatumbo/blob/master/docs/forecast/color_chart.jpg)
+
+Want to have a permanent overview of the weather condition in the next days? Don't like to be surprised by sudden rain or snow fall?
+The forecast module represents the weather forecast as color code on your led strip. Select between a range of today up until in 5 days, shown as 3 hours blocks. It divides into warm, medium and cold temperatures. For each of the temperature ranges, it will deviate the color to indicate the presence of clouds, rain and snow.
+How to get started? Simply configure the configuration file test/adafruit/forecast/config/FORECASTCONFIG.properties with the following attributes:
+
+*   An OpenWeatherMap account key - simply register at [https://openweathermap.org/] for a free account 
+*   An IPInfo account key - simply register at [https://ipinfo.io/] for a free account
+*	Your led strip(s) configuration
+
+**That's all!** You may define a location different than your current location by defining its longitude/latitude or city name/country. Otherwise Catatumbo will automatically take your current location for weather forecast.
+
+## Stock Price
+Visualizes a defined share and compares its performance against its leading index. The timeline will represent the performance in the form of a color graph, letting you know when your share performed well or bad and how it performed in comparison to the leading index.
+**This project currently awaits porting to Adafruit. It will be available soon.** 
+
+# Getting Started - Quick Guide
+For setting up your own Catatumbo light strip, follow the below steps:
+* copy the files and copy it to your Raspberry (e.g. user home dir)
+* attach led strip based on the guidance in below Contruction Guide
+* assure you have Python3 installed on your Rasperry
+* go to the Catatumbo home folder
+* run 'sudo pip3 install -r requirements.txt'
+* start Catatumbo server by typing 'sudo python3 -m catatumbo.starter -m 7' - this will activate 5d day-time weather forecast
+
+# Construction Guide
+For running Catatumbo light strip your require:
+* A Raspberry PI 3 or above
+* An LED strip, Adafruit LED strips or similar 5050-sized LED strips
+* Depending on the length and required power you may need additional power supply for the LED strip
+
+## Fritzen circuit diagram
+TODO
+
+# Developer Quick Guide
+Catatumbo comes with a set of controller, utility classes, a JSON server instance and configuration files. Controller define the mode of the led strip by translating corresponding real-world information in color representations on the LED strip. Utility classes abstract the lower level LED strip implementation. The JSON server is the gateway for [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp) to interact with the Catatumbo server. The configuration files contain LED configuration (like numer of LEDs and Raspberry pin), service account information (like IPInfo and OWM account information) and dynamic configuration (like LED brightness and daytime/nighttime mode).
+
+## Packages
+These are the most important packages of Catatumbo lib:
+* ./catatumbo - main package for all catatumbo server files
+* ./catatumbo/controller - contains the controller classes that represent the different modes, e.g. weather forecast
+* ./core - contains LED abstraction classes as well as additional utility and JSON server files required for running Catatumbo server
+* ./core/interceptor - contains simple JSON server that exposes services on port 8080
+* ./test - currently combines a number of test files as well as Catatumbo server configuration
+* ./test/catatumbo/forecast/config - currently contains the configuration file for initial start up required for running Catatumbo server (FORECASTCONFIG.properties). At runtime an additional file will be created that represents the changed configuration (RUNTIMECONFIG.properties) that if present will be prioritized. Location of configuration files may change in later versions of Catatumbo.
+
+## Classes
+These are the most important classes of Catatumbo lib:
+* ./catatumbo/starter.py - central startup class that starts the predefined mode. It will initialize the controller for setting up the LED strip and start the JSON server to allow interaction via the [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp).
+* ./catatumbo/core/neopixel_multibase.py - the main abstraction class for derived controllers. All controller should derive from this class. It already comes with support for multiple LED strip initialization (installation of custom [Adafruit Blinka Lib](https://github.com/MBizm/Adafruit_Blinka) currently is required), automatic determination of the location based on the IP, automatic daytime/nighttime adaption for fading the brightness at nighttime
+* ./catatumbo/controller/forecast/adafruit_forecast.py - the controller for starting the weather forecast. It will retrieve weather information for your current location via OWM API. It is currently started by default by starter.py script.
+* ./catatumbo/core/interceptor/server/configuration_server.py - simple JSON server that exposes several REST services via port 8080 and will be called by [Catatumbo WebApp](https://github.com/MBizm/CatatumboWebApp).
+
+## Custom Controller Guide
+By deriving your custom controller from neopixel_multibase.py class, building a custom controller is easy and comes already with functionality like support for multiple LED strips and daytime/nighttime brightness adaption.
+Getting the French tricolore filling up your strip is a matter of a few lines:
 
 	np = NeoPixelBase(pixelpin     = board.D18, 
                       pixelnum     = 300, 
@@ -21,42 +77,7 @@ The Catatumbo lib let's you program your led strip in the easiest way. Getting t
                    NeoPixelColors.W_RED)    
 
     np.setPixelBySampeboard(sampleboard)
-That's all! Find the sample module allowing you to configure led strip parametrization from the command line (`--version`) [here](https://github.com/MBizm/Catatumbo/blob/master/src/test/adafruit/neopixel_base_simpletest.py). 
-## Abstraction
-With Catatumbo lib you do not have to care about led strip specifics. Just wire up the strip and run the module. Whether it is predefined color values, matching color schemas, or using configuration files - the abstraction layer let's you do it in a structured and easy way.
-## Multi-strip support
-Do you want to connect multiple led strips to your Raspberry? Catatumbo lib let's you create multiple instances which can be easily configured and change the color pattern or brightness independently. At the same time, Catatumbo may abstract the usage of multiple strips directly connected to the Raspberry by representing it as one. As a result, you just set up one sampleboard and Catatumbo will spread it across all available instances.
-
-*   Connecting multiple strips transparently, see example [here](https://github.com/MBizm/Catatumbo/blob/master/src/test/adafruit/forecast/neopixel_multibase_test.py)
-*   Having two separate instances being controlled by your Raspberry, see example [here](https://github.com/MBizm/Catatumbo/blob/master/src/test/adafruit/forecast/neopixel_base_threadtest.py)
-
-_REMARK: Multi-strip support currently depends on adapted Adafruit Blinka lib. This version of the driver supports several GPIO pins (12, 13, 18, 19, 21). For avoiding interference between the instances, pin 18 and 21 is recommended. Find the adapted version of Adafruit Blinka [here](https://github.com/MBizm/Adafruit_Blinka)._ 
-
-
-
-# Projects
-## Forecast
-Visualizes the weather forecast based on OpenWeatherMap data.
-### Forecast-FruitStrip
-Want to have a permanent overview of the weather condition in the next days? Don't like to be surprised by sudden rain or snow fall?
-The forecast module represents the weather forecast as color code on your led strip. Select between a range of today up until in 5 days, shown as 3 hours blocks. It divides into warm, medium and cold temperatures. For each of the temperature ranges, it will deviate the color to indicate the presence of clouds, rain and snow.
-How to get started? Simply configure the configuration file test/adafruit/forecast/config/FORECASTCONFIG.properties with the following attributes:
-
-*   An OpenWeatherMap account key - simply register at [https://openweathermap.org/] for a free account 
-*   An IPInfo account key - simply register at [https://ipinfo.io/] for a free account
-*	Your led strip(s) configuration
-
-**That's all!** You may define a location different than your current location by defining its longitude/latitude or city name/country. Otherwise Catatumbo will automatically take your current location for weather forecast.
-_For an overview how the weather will be rendered with your defined configuration, you may have a look into [Tk Forecast script](https://github.com/MBizm/Catatumbo/blob/master/src/test/visualizeTk/forecast/CityBarChart.py)._
-
-
-## Stock
-Visualizes a defined share and compares its performance against its leading index. The timeline will represent the performance in the form of a color graph, letting you know when your share performed well or bad and how it performed in comparison to the leading index.
-**This project currently awaits porting to Adafruit. It will be available soon.** 
-## Stock-VisualizeTk
-A simple script that shows the full color spectrum how share price and leading index correlate. The closer both indices are, the more it will tend to neutral white. The more the values differentiate, the more it will tend to one of the HSV color circle representation. Find the sample script [here](https://github.com/MBizm/Catatumbo/blob/master/src/test/visualizeTk/stock/FullSpectrum.py).
-![Stock price comparison matrix showing the performance of a share correlated to its leading index](https://raw.githubusercontent.com/MBizm/Catatumbo/master/docs/stock/Full%20Spectrum.png)
-
+That's all! Find the sample module allowing you to configure led strip parametrization from the command line (`--version`) [here](https://github.com/MBizm/Catatumbo/blob/master/src/test/adafruit/neopixel_base_simpletest.py).
 
 # Credits
 - [OpenWeatherMap](https://openweathermap.org/) - weather data is provided under the [Open Data Commons Open Database License(ODbL)](http://opendatacommons.org/licenses/odbl/)
