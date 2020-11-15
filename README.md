@@ -25,12 +25,14 @@ Visualizes a defined share and compares its performance against its leading inde
 **This project currently awaits porting to Adafruit. It will be available soon.** 
 
 # Getting Started - Quick Guide
-For setting up your own Catatumbo light strip, follow the below steps:
+Catatumbo is in an alpha state. Therefore the project does not provide pre-packaged releases, yet. For running your own Catatumbo light strip installation, follow the below steps:
+* follow the steps described in the 'construction guide' paragraph
 * copy the files and copy it to your Raspberry (e.g. user home dir)
 * attach led strip based on the guidance in below Contruction Guide
 * assure you have Python3 and pip3 installed on your Raspberry - see [Raspberry guide](https://www.raspberrypi.org/documentation/linux/software/python.md)
-* go to the Catatumbo home folder
+* go to the Catatumbo folder by executing 'cd Catatumbo'
 * run 'sudo pip3 install -r requirements.txt'
+* switch to the source folder by executing 'cd src'
 * start Catatumbo server by typing 'sudo python3 -m catatumbo.starter -m 7' - this will activate 5d day-time weather forecast
 
 # Construction Guide
