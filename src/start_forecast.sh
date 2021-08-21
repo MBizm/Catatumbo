@@ -1,1 +1,1 @@
-sudo python3 -m adafruit.controller.forecast.adafruit_forecast
+sudo python3 -m catatumbo.controller.forecast.adafruit_forecast
