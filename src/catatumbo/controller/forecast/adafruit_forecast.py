@@ -51,7 +51,7 @@ class NeoPixelForecast(NeoPixelMultiBase):
     __updated__ = '2019-12-29'
 
     """
-    STATIC CLASS ATTRIBUTES
+    STATIC CLASS PROPERTIES
     """
     MODE_TODAY_DAYTIME      = '1'
     MODE_TODAY_ALL          = '2'
@@ -242,9 +242,69 @@ class NeoPixelForecast(NeoPixelMultiBase):
         # TODO this requires adaption to timezone of defined location, current implementation considers local timezone!
         offset = int(forecast.when_starts('date').hour / 3)
         # mask for period selection, always representing full days including today, stored in big endian representation
-        mask = 0 
+        mask = self._getMask(color_mode, offset)
         # position marker representing current index in binary representation for comparison with mask
         pos = 1
+        
+        # prepare position marker to current time of the day
+        pos = pos << offset
+
+        # check whether winterMode was configured in properties
+        if self.winterConf:
+            # winterMode shall be activated based on winter-/summertime
+            self.winterMode = not(is_dst(timezone=self.localTimeZone))
+        
+        
+        # track current date & time of forecast
+        cdate = forecast.when_starts('date')
+        index = 0
+
+        # iterate through weather forecast blocks
+        for weather in forecast.get_forecast():
+
+            # check whether current position marker matches with flagged timeslots
+            if (mask & pos) > 0:
+                sampleboard = self._fillSampleBoard(cdate, index, sampleboard, weather)
+
+                # count the number of entries for index of dictionary - dictionary is not in chronological order
+                index = index + 1
+            
+            # switch to next forecast block
+            pos = pos << 1
+            cdate = cdate + timedelta(hours=3)
+        
+        # prepare mask for day turn analysis by shifting by the offset
+        mask = (mask >> offset) & 0xFFFFFFFFFF
+
+        print(sampleboard)
+
+        # display weather forecast on LED strip
+        self.setPixelBySampleboard(sampleboard, mask)
+        
+        # store currently displayed weather condition for external status requests
+        self.__sampleboard = sampleboard
+
+    def _fillSampleBoard(self, cdate, index, sampleboard, weather):
+        # get 3-byte or 4-byte color representation based on weather condition
+        sampleboard.update({index: self.mapWeatherConditions(weather.get_temperature(unit='celsius')['temp'],
+                                                             weather.get_clouds(),
+                                                             0 if len(weather.get_rain()) == 0 else
+                                                             list(weather.get_rain().values())[0],
+                                                             cdate,
+                                                             weather.get_weather_code(),
+                                                             len(weather.get_snow()) > 0,
+                                                             weather.get_wind()['speed'],
+                                                             weather.get_humidity(),
+                                                             weather.get_pressure()['press']
+                                                             )})
+        return sampleboard
+
+    """
+        returns the mask depending on the configuration 
+    """
+    def _getMask(self, color_mode, offset):
+        mask = 0
+        # will not make use of offset as the mask is static
 
         if color_mode == type(self).MODE_TODAY_DAYTIME:
             # masks 6am to 9pm slot the next day
@@ -270,54 +330,9 @@ class NeoPixelForecast(NeoPixelMultiBase):
         elif color_mode == type(self).MODE_5DAYS_ALL:
             # just everything...
             mask = 0xFFFFFFFFFF
-        
-        # prepare position marker to current time of the day
-        pos = pos << offset
-        
-        # check whether winterMode was configured in properties
-        if self.winterConf:
-            # winterMode shall be activated based on winter-/summertime
-            self.winterMode = not(is_dst(timezone=self.localTimeZone))
-        
-        
-        # track current date & time of forecast
-        cdate = forecast.when_starts('date')
-        index = 0
-        
-        # iterate through weather forecast blocks
-        for weather in forecast.get_forecast():
 
-            # check whether current position marker matches with flagged timeslots
-            if (mask & pos) > 0:
-                # get 3-byte or 4-byte color representation based on weather condition
-                sampleboard.update({index : self.mapWeatherConditions(weather.get_temperature(unit='celsius')['temp'],
-                                                                       weather.get_clouds(),
-                                                                       0 if len(weather.get_rain()) == 0 else list(weather.get_rain().values())[0],
-                                                                       cdate,
-                                                                       weather.get_weather_code(),
-                                                                       len(weather.get_snow()) > 0,
-                                                                       weather.get_wind()['speed'],
-                                                                       weather.get_humidity(),
-                                                                       weather.get_pressure()['press']
-                                                                       )})
-                # count the number of entries for index of dictionary - dictionary is not in chronological order
-                index = index + 1
-            
-            # switch to next forecast block
-            pos = pos << 1
-            cdate = cdate + timedelta(hours=3)
-        
-        # prepare mask for day turn analysis by shifting by the offset
-        mask = (mask >> offset) & 0xFFFFFFFFFF
-        
-        # display weather forecast on LED strip
-        self.setPixelBySampleboard(sampleboard, mask)
-        
-        # store currently displayed weather condition for external status requests
-        self.__sampleboard = sampleboard
-        
-        
-        
+        return mask
+
     """
         fills the strips according to a list of color values
         in case there are blocks in the sampleboard that shall be separated, a mask can be provided. 
