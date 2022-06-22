@@ -17,7 +17,7 @@ setup(
         'astral==1.10.1',
         'adafruit_circuitpython_neopixel==3.4.0',
         'pytz==2019.1',
-        'numpy==1.17.1',
+        'numpy==1.22.0',
         'pyowm==2.10.0',
         'board==1.0',
     ],
