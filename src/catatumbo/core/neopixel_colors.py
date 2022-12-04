@@ -89,7 +89,7 @@ class NeoPixelColors(object):
         
         type(self).W_WARM_MAGENTA     = (255,0,3,0)       #magenta with a redish nuance
         type(self).W_MAGENTA          = (255,0,6,0)
-        type(self).W_LIGHT_MAGENTA    = (255,0,17,0)      #brighter magenta with more blueish accent
+        type(self).W_LIGHT_MAGENTA    = (255,0,17,30)      #brighter magenta with more blueish accent
         
         type(self).W_LIGHT_SALMON     = (255,60,7,0)
         
@@ -109,7 +109,7 @@ class NeoPixelColors(object):
         
         type(self).W_LIGHT_PURPLE     = (140,0,255,0)     #brighter purple with a redish nuance 
         
-        type(self).W_LIGHT_WHITE      = (255,255,255,255) #brighter white
+        type(self).W_LIGHT_WHITE      = (255,255,255,123) #brighter white
         type(self).W_WHITE            = (255,255,255,0)
         
         type(self).W_BLACK            = (0,0,0,0)

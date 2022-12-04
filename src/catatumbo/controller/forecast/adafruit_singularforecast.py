@@ -1,5 +1,5 @@
 from catatumbo.controller.forecast.adafruit_forecast import NeoPixelForecast
-from catatumbo.controller.forecast.forecast_colors import ForecastNeoPixelColors
+from catatumbo.controller.forecast.forecast_singularcolor import SingularForecastNeoPixelColors
 
 
 class NeoPixelSingularForecast(NeoPixelForecast):
@@ -64,10 +64,10 @@ class NeoPixelSingularForecast(NeoPixelForecast):
                 updatedMap["humidity"] = previousMap["humidity"]
             if previousMap["pressure"] < updatedMap["pressure"]:
                 updatedMap["pressure"] = previousMap["pressure"]
-            updatedMap["color"] = ForecastNeoPixelColors.W_STORM
+            updatedMap["color"] = SingularForecastNeoPixelColors.W_STORM
             updatedMap["debug"] = "storm"
             if previousMap["CATAcode"] == type(self).CONDITION_STORM:
-                updatedMap.OWMcode = previousMap.OWMcode
+                updatedMap["OWMcode"] = previousMap["OWMcode"]
             updatedMap["CATAcode"] = type(self).CONDITION_STORM
         elif updatedMap["CATAcode"] == type(self).CONDITION_SNOW or \
                 previousMap["CATAcode"] == type(self).CONDITION_SNOW:
@@ -83,10 +83,10 @@ class NeoPixelSingularForecast(NeoPixelForecast):
                 updatedMap["humidity"] = previousMap["humidity"]
             if previousMap["pressure"] < updatedMap["pressure"]:
                 updatedMap["pressure"] = previousMap["pressure"]
-            updatedMap["color"] = ForecastNeoPixelColors.W_SNOW
+            updatedMap["color"] = SingularForecastNeoPixelColors.W_SNOW
             updatedMap["debug"] = "snow"
             if previousMap["CATAcode"] == type(self).CONDITION_SNOW:
-                updatedMap.OWMcode = previousMap.OWMcode
+                updatedMap["OWMcode"] = previousMap["OWMcode"]
             updatedMap["CATAcode"] = type(self).CONDITION_SNOW
         else:
             if updatedMap["CATAcode"] & type(self).CONDITION_SLRAI == type(self).CONDITION_SLRAI or \
@@ -107,7 +107,7 @@ class NeoPixelSingularForecast(NeoPixelForecast):
                 if previousMap["CATAcode"] == type(self).CONDITION_RAI or \
                         previousMap["CATAcode"] == type(self).CONDITION_SLRAI and not (
                         updatedMap["CATAcode"] == type(self).CONDITION_RAI):
-                    updatedMap.OWMcode = previousMap.OWMcode
+                    updatedMap["OWMcode"] = previousMap["OWMcode"]
                 updatedMap["CATAcode"] = type(self).CONDITION_RAI
 
             if updatedMap["CATAcode"] & type(self).CONDITION_LTMP == type(self).CONDITION_LTMP or \
@@ -124,17 +124,19 @@ class NeoPixelSingularForecast(NeoPixelForecast):
             # final color alignment
             if updatedMap["CATAcode"] & type(self).CONDITION_HTMP == type(self).CONDITION_HTMP:
                 if updatedMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI:
-                    updatedMap["color"] = ForecastNeoPixelColors.W_HITMP_RAINY
+                    updatedMap["color"] = SingularForecastNeoPixelColors.W_HITMP_RAINY
                 else:
-                    updatedMap["color"] = ForecastNeoPixelColors.W_HITMP
+                    updatedMap["color"] = SingularForecastNeoPixelColors.W_HITMP
             elif updatedMap["CATAcode"] & type(self).CONDITION_LTMP == type(self).CONDITION_LTMP:
                 if updatedMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI:
-                    updatedMap["color"] = ForecastNeoPixelColors.W_LOWTMP_RAINY
+                    updatedMap["color"] = SingularForecastNeoPixelColors.W_LOWTMP_RAINY
                 else:
-                    updatedMap["color"] = ForecastNeoPixelColors.W_LOWTMP
+                    updatedMap["color"] = SingularForecastNeoPixelColors.W_LOWTMP
             elif updatedMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI:
-                updatedMap["color"] = ForecastNeoPixelColors.W_MIDTMP_RAINY
+                updatedMap["color"] = SingularForecastNeoPixelColors.W_MIDTMP_RAINY
             else:
-                updatedMap["color"] = ForecastNeoPixelColors.W_MIDTMP
+                updatedMap["color"] = SingularForecastNeoPixelColors.W_MIDTMP
+
+        print(str(updatedMap["color"]))
 
         return {0: updatedMap}
