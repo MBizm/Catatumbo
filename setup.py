@@ -11,7 +11,7 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=[
-        'requests==2.21.0',
+        'requests==2.31.0',
         'ipinfo==3.0.0',
         'Adafruit_Blinka==3.0.1',
         'astral==1.10.1',
