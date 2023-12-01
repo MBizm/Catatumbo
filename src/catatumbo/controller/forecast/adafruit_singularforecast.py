@@ -50,20 +50,22 @@ class NeoPixelSingularForecast(NeoPixelForecast):
             # lazy initialization...
             previousMap = updatedMap
 
+        # transfer extreme values from previous set
+        # temperature transfer only relevant for non-extreme weather conditions
+        if previousMap["cloud"] > updatedMap["cloud"]:
+            updatedMap["cloud"] = previousMap["cloud"]
+        if previousMap["rain"] > updatedMap["rain"]:
+            updatedMap["rain"] = previousMap["rain"]
+        if previousMap["wind"] > updatedMap["wind"]:
+            updatedMap["wind"] = previousMap["wind"]
+        if previousMap["humidity"] > updatedMap["humidity"]:
+            updatedMap["humidity"] = previousMap["humidity"]
+        if previousMap["pressure"] < updatedMap["pressure"]:
+            updatedMap["pressure"] = previousMap["pressure"]
+
+        # handle weather extremes
         if updatedMap["CATAcode"] == type(self).CONDITION_STORM or \
                 previousMap["CATAcode"] == type(self).CONDITION_STORM:
-            if previousMap["temp"] < updatedMap["temp"]:
-                updatedMap["temp"] = previousMap["temp"]
-            if previousMap["cloud"] > updatedMap["cloud"]:
-                updatedMap["cloud"] = previousMap["cloud"]
-            if previousMap["rain"] > updatedMap["rain"]:
-                updatedMap["rain"] = previousMap["rain"]
-            if previousMap["wind"] > updatedMap["wind"]:
-                updatedMap["wind"] = previousMap["wind"]
-            if previousMap["humidity"] > updatedMap["humidity"]:
-                updatedMap["humidity"] = previousMap["humidity"]
-            if previousMap["pressure"] < updatedMap["pressure"]:
-                updatedMap["pressure"] = previousMap["pressure"]
             updatedMap["color"] = SingularForecastNeoPixelColors.W_STORM
             updatedMap["debug"] = "storm"
             if previousMap["CATAcode"] == type(self).CONDITION_STORM:
@@ -71,39 +73,17 @@ class NeoPixelSingularForecast(NeoPixelForecast):
             updatedMap["CATAcode"] = type(self).CONDITION_STORM
         elif updatedMap["CATAcode"] == type(self).CONDITION_SNOW or \
                 previousMap["CATAcode"] == type(self).CONDITION_SNOW:
-            if previousMap["temp"] < updatedMap["temp"]:
-                updatedMap["temp"] = previousMap["temp"]
-            if previousMap["cloud"] > updatedMap["cloud"]:
-                updatedMap["cloud"] = previousMap["cloud"]
-            if previousMap["rain"] > updatedMap["rain"]:
-                updatedMap["rain"] = previousMap["rain"]
-            if previousMap["wind"] > updatedMap["wind"]:
-                updatedMap["wind"] = previousMap["wind"]
-            if previousMap["humidity"] > updatedMap["humidity"]:
-                updatedMap["humidity"] = previousMap["humidity"]
-            if previousMap["pressure"] < updatedMap["pressure"]:
-                updatedMap["pressure"] = previousMap["pressure"]
             updatedMap["color"] = SingularForecastNeoPixelColors.W_SNOW
             updatedMap["debug"] = "snow"
             if previousMap["CATAcode"] == type(self).CONDITION_SNOW:
                 updatedMap["OWMcode"] = previousMap["OWMcode"]
             updatedMap["CATAcode"] = type(self).CONDITION_SNOW
+        # handle non-extreme weather conditions
         else:
             if updatedMap["CATAcode"] & type(self).CONDITION_SLRAI == type(self).CONDITION_SLRAI or \
                     updatedMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI or \
                     previousMap["CATAcode"] & type(self).CONDITION_SLRAI == type(self).CONDITION_SLRAI or \
                     previousMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI:
-                if previousMap["cloud"] > updatedMap["cloud"]:
-                    updatedMap["cloud"] = previousMap["cloud"]
-                if previousMap["rain"] > updatedMap["rain"]:
-                    updatedMap["rain"] = previousMap["rain"]
-                if previousMap["wind"] > updatedMap["wind"]:
-                    updatedMap["wind"] = previousMap["wind"]
-                if previousMap["humidity"] > updatedMap["humidity"]:
-                    updatedMap["humidity"] = previousMap["humidity"]
-                if previousMap["pressure"] < updatedMap["pressure"]:
-                    updatedMap["pressure"] = previousMap["pressure"]
-                updatedMap["debug"] = "rainy"
                 if previousMap["CATAcode"] == type(self).CONDITION_RAI or \
                         previousMap["CATAcode"] == type(self).CONDITION_SLRAI and not (
                         updatedMap["CATAcode"] == type(self).CONDITION_RAI):
@@ -114,29 +94,33 @@ class NeoPixelSingularForecast(NeoPixelForecast):
                     previousMap["CATAcode"] & type(self).CONDITION_LTMP == type(self).CONDITION_LTMP:
                 if previousMap["temp"] < updatedMap["temp"]:
                     updatedMap["temp"] = previousMap["temp"]
-                updatedMap["CATAcode"] = previousMap["CATAcode"] | type(self).CONDITION_HTMP
+                updatedMap["CATAcode"] = updatedMap["CATAcode"] | type(self).CONDITION_LTMP
             elif updatedMap["CATAcode"] & type(self).CONDITION_HTMP == type(self).CONDITION_HTMP or \
                     previousMap["CATAcode"] & type(self).CONDITION_HTMP == type(self).CONDITION_HTMP:
                 if previousMap["temp"] > updatedMap["temp"]:
                     updatedMap["temp"] = previousMap["temp"]
-                updatedMap["CATAcode"] = previousMap["CATAcode"] | type(self).CONDITION_HTMP
+                updatedMap["CATAcode"] = updatedMap["CATAcode"] | type(self).CONDITION_HTMP
 
             # final color alignment
             if updatedMap["CATAcode"] & type(self).CONDITION_HTMP == type(self).CONDITION_HTMP:
                 if updatedMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI:
                     updatedMap["color"] = SingularForecastNeoPixelColors.W_HITMP_RAINY
+                    updatedMap["debug"] = "rainy, high temp"
                 else:
                     updatedMap["color"] = SingularForecastNeoPixelColors.W_HITMP
+                    updatedMap["debug"] = "high temp"
             elif updatedMap["CATAcode"] & type(self).CONDITION_LTMP == type(self).CONDITION_LTMP:
                 if updatedMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI:
                     updatedMap["color"] = SingularForecastNeoPixelColors.W_LOWTMP_RAINY
+                    updatedMap["debug"] = "rainy, low temp"
                 else:
                     updatedMap["color"] = SingularForecastNeoPixelColors.W_LOWTMP
+                    updatedMap["debug"] = "low temp"
             elif updatedMap["CATAcode"] & type(self).CONDITION_RAI == type(self).CONDITION_RAI:
                 updatedMap["color"] = SingularForecastNeoPixelColors.W_MIDTMP_RAINY
+                updatedMap["debug"] = "rainy, mid temp"
             else:
                 updatedMap["color"] = SingularForecastNeoPixelColors.W_MIDTMP
-
-        print(str(updatedMap["color"]))
+                updatedMap["debug"] = "mid temp"
 
         return {0: updatedMap}
